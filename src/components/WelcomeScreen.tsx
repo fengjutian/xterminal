@@ -1,15 +1,15 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 
 interface Props {
   onConnect: () => void;
+  onLocalTerminal: () => void;
 }
 
-export default function WelcomeScreen({ onConnect }: Props) {
+export default function WelcomeScreen({ onConnect, onLocalTerminal }: Props) {
   const [host, setHost] = useState("");
 
   const handleQuickConnect = () => {
     if (host.trim()) {
-      // TODO: Parse host string (user@host:port) and connect
       onConnect();
     }
   };
@@ -28,6 +28,11 @@ export default function WelcomeScreen({ onConnect }: Props) {
         />
         <button className="btn" onClick={handleQuickConnect}>
           Connect
+        </button>
+      </div>
+      <div style={{ display: "flex", gap: "12px", marginTop: "8px" }}>
+        <button className="btn btn-secondary" onClick={onLocalTerminal}>
+          Open Local Terminal
         </button>
       </div>
       <p style={{ fontSize: "12px", color: "var(--text-muted)" }}>

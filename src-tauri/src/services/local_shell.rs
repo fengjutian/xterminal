@@ -1,21 +1,23 @@
-/// Local shell service — spawns native PTY shells (cmd/powershell/bash/zsh)
+/// Local shell service — spawns native shells with stdin/stdout pipes.
+///
+/// Note: Pipe-based shells don't provide a true PTY experience.
+/// Interactive programs (vim, top, etc.) may not work correctly.
+/// Upgrade to PTY for full terminal compatibility.
 
-use portable_pty::{CommandBuilder, MasterPty, PtySize};
 use std::collections::HashMap;
 use std::io::{Read, Write};
+use std::process::{Child, Command, Stdio};
 use std::sync::Arc;
 use tauri::Emitter;
 use tokio::sync::Mutex;
 
-pub struct LocalShell {
-    pub session_id: String,
-    pub master: Box<dyn MasterPty + Send>,
-    pub child: Box<dyn portable_pty::Child + Send + Sync>,
-    pub writer: Box<dyn Write + Send>,
+struct LocalShellProcess {
+    child: Child,
+    stdin_writer: Box<dyn Write + Send>,
 }
 
 pub struct LocalShellService {
-    sessions: Arc<Mutex<HashMap<String, LocalShell>>>,
+    sessions: Arc<Mutex<HashMap<String, LocalShellProcess>>>,
 }
 
 impl LocalShellService {
@@ -27,57 +29,39 @@ impl LocalShellService {
 
     pub async fn spawn_shell(
         &self,
-        cols: u16,
-        rows: u16,
+        _cols: u16,
+        _rows: u16,
         app_handle: tauri::AppHandle,
     ) -> Result<String, String> {
         let session_id = uuid::Uuid::new_v4().to_string();
 
         #[cfg(target_os = "windows")]
-        let shell_cmd = "powershell.exe";
+        let (shell, args): (&str, &[&str]) = ("powershell.exe", &["-NoLogo", "-NoExit"]);
         #[cfg(not(target_os = "windows"))]
-        let shell_cmd = std::env::var("SHELL").unwrap_or_else(|_| "/bin/bash".to_string());
+        let (shell, args): (&str, &[&str]) = {
+            let sh = std::env::var("SHELL").unwrap_or_else(|_| "/bin/bash".to_string());
+            (Box::leak(sh.into_boxed_str()), &[][..])
+        };
 
-        let pty_system = portable_pty::native_pty_system();
-        let mut pty_pair = pty_system
-            .openpty(PtySize {
-                rows,
-                cols,
-                pixel_width: 0,
-                pixel_height: 0,
-            })
-            .map_err(|e| format!("Failed to open PTY: {}", e))?;
-
-        let mut cmd = CommandBuilder::new(shell_cmd.as_ref());
-        #[cfg(target_os = "windows")]
-        {
-            cmd.arg("-NoLogo");
-            cmd.arg("-NoExit");
-        }
-
-        let child = pty_pair
-            .slave
-            .spawn_command(cmd)
+        let mut child = Command::new(shell)
+            .args(args)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
             .map_err(|e| format!("Failed to spawn shell: {}", e))?;
 
-        drop(pty_pair.slave);
+        let stdin_writer: Box<dyn Write + Send> =
+            Box::new(child.stdin.take().ok_or("Failed to take stdin")?);
 
-        let writer = pty_pair
-            .master
-            .try_clone_writer()
-            .map_err(|e| format!("Failed to clone writer: {}", e))?;
-
-        let mut reader = pty_pair
-            .master
-            .try_clone_reader()
-            .map_err(|e| format!("Failed to clone reader: {}", e))?;
+        let mut stdout = child.stdout.take().ok_or("Failed to take stdout")?;
 
         let sid = session_id.clone();
         tokio::task::spawn_blocking(move || {
             let mut buf = [0u8; 4096];
             loop {
-                match reader.read(&mut buf) {
-                    Ok(0) => break,
+                match stdout.read(&mut buf) {
+                    Ok(0) => break, // EOF
                     Ok(n) => {
                         let data = buf[..n].to_vec();
                         let _ = app_handle.emit("local-terminal-output", serde_json::json!({
@@ -90,14 +74,12 @@ impl LocalShellService {
             }
         });
 
-        let shell = LocalShell {
-            session_id: session_id.clone(),
-            master: pty_pair.master,
+        let proc = LocalShellProcess {
             child,
-            writer,
+            stdin_writer,
         };
 
-        self.sessions.lock().await.insert(session_id.clone(), shell);
+        self.sessions.lock().await.insert(session_id.clone(), proc);
         Ok(session_id)
     }
 
@@ -107,40 +89,28 @@ impl LocalShellService {
         data: &[u8],
     ) -> Result<(), String> {
         let mut sessions = self.sessions.lock().await;
-        if let Some(shell) = sessions.get_mut(session_id) {
-            shell
-                .writer
+        if let Some(proc) = sessions.get_mut(session_id) {
+            proc.stdin_writer
                 .write_all(data)
-                .map_err(|e| format!("Failed to write to PTY: {}", e))?;
+                .and_then(|_| proc.stdin_writer.flush())
+                .map_err(|e| format!("Failed to write to shell: {}", e))?;
         }
         Ok(())
     }
 
     pub async fn resize_shell(
         &self,
-        session_id: &str,
-        cols: u16,
-        rows: u16,
+        _session_id: &str,
+        _cols: u16,
+        _rows: u16,
     ) -> Result<(), String> {
-        let mut sessions = self.sessions.lock().await;
-        if let Some(shell) = sessions.get_mut(session_id) {
-            shell
-                .master
-                .resize(PtySize {
-                    rows,
-                    cols,
-                    pixel_width: 0,
-                    pixel_height: 0,
-                })
-                .map_err(|e| format!("Failed to resize PTY: {}", e))?;
-        }
         Ok(())
     }
 
     pub async fn kill_shell(&self, session_id: &str) -> Result<(), String> {
         let mut sessions = self.sessions.lock().await;
-        if let Some(mut shell) = sessions.remove(session_id) {
-            let _ = shell.child.kill();
+        if let Some(mut proc) = sessions.remove(session_id) {
+            let _ = proc.child.kill();
         }
         Ok(())
     }

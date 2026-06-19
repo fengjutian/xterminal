@@ -5,10 +5,33 @@ import TerminalPanel from "./components/TerminalPanel";
 import FileExplorer from "./components/FileExplorer";
 import TransferPanel from "./components/TransferPanel";
 import WelcomeScreen from "./components/WelcomeScreen";
+import { useTerminalStore } from "./stores/terminalStore";
 
 export default function App() {
   const [activeView, setActiveView] = useState<"terminal" | "files">("terminal");
   const [connected, setConnected] = useState(false);
+  const createTab = useTerminalStore((s) => s.createTab);
+
+  const handleLocalTerminal = async () => {
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      const sessionId: string = await invoke("local_shell_spawn", {
+        cols: 80,
+        rows: 24,
+      });
+      createTab({
+        id: sessionId,
+        connection_id: "local",
+        name: "Local Terminal",
+        host: "localhost",
+        state: "connected",
+        connected_at: new Date().toISOString(),
+      });
+      setConnected(true);
+    } catch (e) {
+      console.error("Failed to spawn local terminal:", e);
+    }
+  };
 
   return (
     <div className="app-container">
@@ -42,7 +65,10 @@ export default function App() {
               <TransferPanel />
             </>
           ) : (
-            <WelcomeScreen onConnect={() => setConnected(true)} />
+            <WelcomeScreen
+              onConnect={() => setConnected(true)}
+              onLocalTerminal={handleLocalTerminal}
+            />
           )}
         </div>
       </div>

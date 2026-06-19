@@ -29,8 +29,9 @@ rusqlite = { version = "0.31", features = ["bundled"] }
 keyring = "3"
 russh = "0.44"
 russh-sftp = "2"
+russh-keys = "0.44"
 suppaftp = "5"
-portable-pty = "0.8"
+anyhow = "1"
 log = "0.4"
 env_logger = "0.11"
 

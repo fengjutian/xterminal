@@ -33,6 +33,7 @@ pub fn run() {
         })
         .manage(commands::connection::DatabaseState::default())
         .manage(commands::local_shell::LocalShellState::new())
+        .manage(commands::ssh::SshState::new())
         .invoke_handler(tauri::generate_handler![
             commands::connection::list_connections,
             commands::connection::create_connection,
