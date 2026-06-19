@@ -12,6 +12,19 @@ use russh::Channel;
 use russh::ChannelId;
 use russh_keys::load_secret_key;
 use async_trait::async_trait;
+use encoding_rs::{UTF_8, GBK, BIG5, SHIFT_JIS, EUC_KR};
+
+/// Convert an encoding string (e.g. "UTF-8", "GBK") to the corresponding encoding_rs encoding.
+fn encoding_from_str(name: &str) -> &'static encoding_rs::Encoding {
+    match name.trim().to_uppercase().as_str() {
+        "GBK" | "GB2312" | "GB18030" | "CP936" => GBK,
+        "BIG5" | "BIG-5" => BIG5,
+        "SHIFT_JIS" | "SHIFT-JIS" | "SJIS" | "CP932" => SHIFT_JIS,
+        "EUC_KR" | "EUC-KR" | "CP949" => EUC_KR,
+        "ISO_8859_1" | "ISO-8859-1" | "LATIN1" | "CP28591" => UTF_8,
+        _ => UTF_8, // default to UTF-8
+    }
+}
 
 // ---------------------------------------------------------------------------
 // Session handle stored in the service map
@@ -20,6 +33,7 @@ struct SshSession {
     handle: client::Handle<SshClientHandler>,
     channel: Channel<Msg>,
     read_task: tokio::task::JoinHandle<()>,
+    encoding: &'static encoding_rs::Encoding,
 }
 
 // ---------------------------------------------------------------------------
@@ -29,6 +43,7 @@ struct SshSession {
 struct SshClientHandler {
     app_handle: tauri::AppHandle,
     session_id: String,
+    encoding: &'static encoding_rs::Encoding,
 }
 
 #[async_trait]
@@ -54,11 +69,14 @@ impl Handler for SshClientHandler {
         data: &[u8],
         _session: &mut russh::client::Session,
     ) -> Result<(), Self::Error> {
+        // Convert from the configured encoding (e.g. GBK) to UTF-8 for xterm.js
+        let (decoded, _, _) = self.encoding.decode(data);
+        let utf8_data = decoded.as_bytes().to_vec();
         let _ = self.app_handle.emit(
             "ssh-terminal-output",
             serde_json::json!({
                 "session_id": self.session_id,
-                "data": data,
+                "data": utf8_data,
             }),
         );
         Ok(())
@@ -94,6 +112,7 @@ impl SshService {
     /// Supports password and private-key authentication.
     /// A PTY is allocated and a shell is started.
     /// Terminal output is emitted as "ssh-terminal-output" events.
+    /// The `encoding` parameter specifies the remote server's text encoding (e.g. "UTF-8", "GBK").
     pub async fn connect(
         &self,
         host: &str,
@@ -104,9 +123,11 @@ impl SshService {
         passphrase: Option<&str>,
         _timeout_secs: u32,
         _keep_alive_secs: u32,
+        encoding: &str,
         app_handle: tauri::AppHandle,
     ) -> Result<String, String> {
         let session_id = uuid::Uuid::new_v4().to_string();
+        let enc = encoding_from_str(encoding);
 
         let addr = format!("{}:{}", host, port);
 
@@ -118,6 +139,7 @@ impl SshService {
         let handler = SshClientHandler {
             app_handle: app_handle.clone(),
             session_id: session_id.clone(),
+            encoding: enc,
         };
 
         log::info!("[ssh {}] Connecting to {}...", session_id, addr);
@@ -186,6 +208,7 @@ impl SshService {
             handle,
             channel,
             read_task: tokio::spawn(async {}), // placeholder — russh drives reads internally
+            encoding: enc,
         };
 
         self.sessions
@@ -197,15 +220,21 @@ impl SshService {
     }
 
     /// Write data to a connected SSH session (stdin).
+    /// Converts input from UTF-8 to the session's configured encoding.
     pub async fn write(&self, session_id: &str, data: &[u8]) -> Result<(), String> {
         let mut sessions = self.sessions.lock().await;
         let session = sessions
             .get_mut(session_id)
             .ok_or_else(|| format!("SSH session {} not found", session_id))?;
 
+        // Convert from UTF-8 to the remote server's encoding
+        let (decoded, _, _) = UTF_8.decode(data);
+        let (encoded, _, _) = session.encoding.encode(&decoded);
+        let encoded: Vec<u8> = encoded.into_owned();
+
         session
             .channel
-            .data(data)
+            .data(&encoded[..])
             .await
             .map_err(|e| format!("Failed to write to SSH channel: {:#}", e))?;
 

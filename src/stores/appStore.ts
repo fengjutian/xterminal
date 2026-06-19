@@ -14,7 +14,7 @@ interface AppStoreState {
 
 export const useAppStore = create<AppStoreState>((set) => ({
   settings: DEFAULT_SETTINGS,
-  sidebarVisible: true,
+  sidebarVisible: false,
   sidebarWidth: 260,
 
   updateSettings: (updates) =>

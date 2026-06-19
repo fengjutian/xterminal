@@ -1,5 +1,5 @@
 ﻿import { useState, useEffect, useCallback } from "react";
-import { VscTerminalBash, VscFiles } from "react-icons/vsc";
+import { VscTerminalBash, VscFiles, VscAdd } from "react-icons/vsc";
 import Sidebar from "./components/Sidebar";
 import TabBar from "./components/TabBar";
 import TerminalPanel from "./components/TerminalPanel";
@@ -178,6 +178,14 @@ export default function App() {
               <div className="workspace-toolbar">
                 <TabBar />
                 <div className="toolbar-actions">
+                  <button
+                    className="toolbar-btn"
+                    onClick={handleLocalTerminal}
+                    title="New Terminal (Ctrl+Shift+T)"
+                  >
+                    <VscAdd size={16} />
+                  </button>
+                  <div className="toolbar-divider" />
                   <button
                     className={`toolbar-btn ${activeView === "terminal" ? "active" : ""}`}
                     onClick={() => setActiveView("terminal")}

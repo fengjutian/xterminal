@@ -346,6 +346,13 @@ html, body, #root {
 .toolbar-btn:active { background: var(--border); }
 .toolbar-btn.active { color: var(--accent); }
 
+.toolbar-divider {
+  width: 1px;
+  height: 16px;
+  background: var(--border);
+  margin: auto 4px;
+}
+
 /* Terminal */
 .terminal-container {
   height: 100%;

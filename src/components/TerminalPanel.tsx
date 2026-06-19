@@ -20,6 +20,7 @@ export default function TerminalPanel() {
 
   const activeTabId = useTerminalStore((s) => s.activeTabId);
   const tabs = useTerminalStore((s) => s.tabs);
+  const pendingNewSessionId = useTerminalStore((s) => s.pendingNewSessionId);
 
   const activeTab = tabs.find((t) => t.id === activeTabId) ?? null;
 
@@ -183,16 +184,34 @@ export default function TerminalPanel() {
     return () => observer.disconnect();
   }, [resizeBackend]);
 
-  // React to tab switches: clear terminal and switch session
+  // Track the last session ID to avoid re-clearing on same-tab re-render
+  const prevSessionRef = useRef<string | null>(null);
+
+  // React to tab switches: clear only when a brand-new tab is activated
   useEffect(() => {
     const term = terminalRef.current;
     if (!term) return;
 
     if (activeTab) {
+      // Same session — no-op
+      if (prevSessionRef.current === activeTab.sessionId) return;
+
+      const isNew = activeTab.sessionId === pendingNewSessionId;
+
+      prevSessionRef.current = activeTab.sessionId;
       sessionIdRef.current = activeTab.sessionId;
       sessionKindRef.current = activeTab.kind;
-      term.clear();
+
+      if (isNew) {
+        // Newly created tab — clear so its shell output starts fresh
+        term.write("\x1b[2J\x1b[H");
+        term.clear();
+      }
+      // Existing tab switch — preserve current screen content
     } else {
+      // Already showing the "no session" prompt — skip
+      if (prevSessionRef.current === null) return;
+      prevSessionRef.current = null;
       sessionIdRef.current = null;
       sessionKindRef.current = null;
       term.clear();
@@ -201,7 +220,7 @@ export default function TerminalPanel() {
         "\x1b[2;37mOpen a local terminal or connect to a remote host.\x1b[0m"
       );
     }
-  }, [activeTab]);
+  }, [activeTab, pendingNewSessionId]);
 
   return <div className="terminal-container" ref={containerRef} />;
 }

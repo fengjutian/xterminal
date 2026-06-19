@@ -25,6 +25,7 @@ pub async fn ssh_connect(
     passphrase: Option<String>,
     timeout_secs: Option<u32>,
     keep_alive_secs: Option<u32>,
+    encoding: Option<String>,
 ) -> Result<String, String> {
     let service = state.0.lock().await;
     service
@@ -37,6 +38,7 @@ pub async fn ssh_connect(
             passphrase.as_deref(),
             timeout_secs.unwrap_or(30),
             keep_alive_secs.unwrap_or(60),
+            encoding.as_deref().unwrap_or("UTF-8"),
             app_handle,
         )
         .await
@@ -123,10 +125,12 @@ pub async fn ssh_connect_from_config(
             passphrase.as_deref(),
             config.connection_timeout,
             config.keep_alive_interval,
+            &config.encoding,
             app_handle,
         )
         .await
 }
+
 
 /// Disconnect an SSH session
 #[tauri::command]

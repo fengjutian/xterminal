@@ -6209,6 +6209,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
+ "encoding_rs",
  "env_logger",
  "keyring",
  "log",

@@ -13,6 +13,8 @@ interface TerminalState {
   tabs: TerminalTab[];
   sessions: Map<string, SshSession>;
   activeTabId: string | null;
+  /** Set when a tab is freshly created; cleared on normal tab switch */
+  pendingNewSessionId: string | null;
 
   createTab: (session: SshSession) => void;
   closeTab: (tabId: string) => void;
@@ -24,6 +26,7 @@ export const useTerminalStore = create<TerminalState>((set, _get) => ({
   tabs: [],
   sessions: new Map(),
   activeTabId: null,
+  pendingNewSessionId: null,
 
   createTab: (session) => {
     const tabId = crypto.randomUUID();
@@ -41,6 +44,7 @@ export const useTerminalStore = create<TerminalState>((set, _get) => ({
         tabs: s.tabs.map((t) => ({ ...t, isActive: false })).concat(tab),
         sessions: newSessions,
         activeTabId: tabId,
+        pendingNewSessionId: session.id,
       };
     });
   },
@@ -83,6 +87,7 @@ export const useTerminalStore = create<TerminalState>((set, _get) => ({
     set((s) => ({
       tabs: s.tabs.map((t) => ({ ...t, isActive: t.id === tabId })),
       activeTabId: tabId,
+      pendingNewSessionId: null,
     }));
   },
 

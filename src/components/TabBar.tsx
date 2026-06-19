@@ -34,7 +34,9 @@ export default function TabBar() {
         <div
           key={tab.id}
           className={`tab-item ${tab.id === activeTabId ? "active" : ""}`}
-          onClick={() => setActiveTab(tab.id)}
+          onClick={() => {
+            if (tab.id !== activeTabId) setActiveTab(tab.id);
+          }}
           onContextMenu={(e) => handleContextMenu(e, tab.id)}
         >
           <span className="tab-title-text">{tab.title}</span>
