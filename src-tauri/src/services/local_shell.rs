@@ -1,13 +1,13 @@
-/// Local shell service — spawns native shells with stdin/stdout pipes.
+/// Local shell service — spawns native shells through a real PTY/ConPTY.
 ///
-/// Note: Pipe-based shells don't provide a true PTY experience.
-/// Interactive programs (vim, top, etc.) may not work correctly.
-/// Upgrade to PTY for full terminal compatibility.
+/// Uses `portable-pty` which provides ConPTY on Windows and Unix PTY on
+/// macOS/Linux, enabling interactive programs (vim, top, backspace, etc.)
+/// to work correctly.
 
 use std::collections::HashMap;
 use std::io::{Read, Write};
-use std::process::{Child, Command, Stdio};
 use std::sync::Arc;
+use portable_pty::{Child, CommandBuilder, MasterPty, NativePtySystem, PtyPair, PtySize, PtySystem};
 use tauri::Emitter;
 use tokio::sync::Mutex;
 use encoding_rs::UTF_8;
@@ -16,8 +16,6 @@ use encoding_rs::UTF_8;
 /// On non-Windows, always returns UTF-8.
 #[cfg(windows)]
 fn system_encoding() -> &'static encoding_rs::Encoding {
-    // GetACP() returns the active Windows code page
-    // We use a minimal FFI call instead of pulling in the win32 crate
     let cp = windows_GetACP();
     match cp {
         936 | 54936 => encoding_rs::GBK,
@@ -25,7 +23,7 @@ fn system_encoding() -> &'static encoding_rs::Encoding {
         932 => encoding_rs::SHIFT_JIS,
         949 => encoding_rs::EUC_KR,
         65001 => encoding_rs::UTF_8,
-        _ => encoding_rs::GBK, // safe default for Chinese Windows
+        _ => encoding_rs::GBK,
     }
 }
 
@@ -58,8 +56,12 @@ fn encode_to_system(data: &[u8]) -> Vec<u8> {
 }
 
 struct LocalShellProcess {
-    child: Child,
-    stdin_writer: Box<dyn Write + Send>,
+    // The child handle is kept alive for the session lifetime
+    _child: Box<dyn Child + Send>,
+    // The master side of the PTY — used for resize
+    _master: Box<dyn MasterPty + Send>,
+    // Writer to the PTY master (input to the shell)
+    writer: Box<dyn Write + Send>,
 }
 
 pub struct LocalShellService {
@@ -75,7 +77,6 @@ impl LocalShellService {
 
     /// Determine a sensible starting directory for the shell.
     fn starting_directory() -> std::path::PathBuf {
-        // On Windows prefer USERPROFILE; on Unix HOME; fall back to the crate root or CWD.
         #[cfg(target_os = "windows")]
         let home = std::env::var("USERPROFILE")
             .map(std::path::PathBuf::from)
@@ -90,10 +91,8 @@ impl LocalShellService {
                 return p;
             }
         }
-        // Fall back to the parent of the executable (project root when run via `cargo tauri dev`)
         if let Ok(exe) = std::env::current_exe() {
             if let Some(parent) = exe.parent() {
-                // On Windows the exe is in src-tauri/target/debug/; go up to the project root
                 let mut dir = parent.to_path_buf();
                 for _ in 0..4 {
                     if dir.join("package.json").exists() || dir.join(".git").exists() {
@@ -113,8 +112,8 @@ impl LocalShellService {
 
     pub async fn spawn_shell(
         &self,
-        _cols: u16,
-        _rows: u16,
+        cols: u16,
+        rows: u16,
         app_handle: tauri::AppHandle,
     ) -> Result<String, String> {
         let session_id = uuid::Uuid::new_v4().to_string();
@@ -129,60 +128,60 @@ impl LocalShellService {
 
         let starting_dir = Self::starting_directory();
 
-        let mut child = Command::new(shell)
-            .args(args)
-            .current_dir(&starting_dir)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .map_err(|e| format!("Failed to spawn shell: {}", e))?;
+        // Create a PTY pair via portable-pty (ConPTY on Windows, Unix PTY elsewhere)
+        let pty_system = NativePtySystem::default();
+        let pair: PtyPair = pty_system
+            .openpty(PtySize {
+                rows,
+                cols,
+                pixel_width: 0,
+                pixel_height: 0,
+            })
+            .map_err(|e| format!("Failed to open PTY: {}", e))?;
 
-        let stdin_writer: Box<dyn Write + Send> =
-            Box::new(child.stdin.take().ok_or("Failed to take stdin")?);
+        // Build the command to spawn through the PTY slave
+        let mut cmd = CommandBuilder::new(shell);
+        cmd.cwd(starting_dir);
+        for arg in args {
+            cmd.arg(arg);
+        }
 
-        let mut stdout = child.stdout.take().ok_or("Failed to take stdout")?;
-        let mut stderr = child.stderr.take().ok_or("Failed to take stderr")?;
+        // Spawn the shell through the PTY slave side
+        let child = pair
+            .slave
+            .spawn_command(cmd)
+            .map_err(|e| format!("Failed to spawn shell in PTY: {}", e))?;
 
-        let sid1 = session_id.clone();
-        let sid2 = session_id.clone();
-        let ah1 = app_handle.clone();
-        let ah2 = app_handle.clone();
+        // Clone the PTY master reader and take the writer for background I/O
+        let reader = pair
+            .master
+            .try_clone_reader()
+            .map_err(|e| format!("Failed to clone PTY reader: {}", e))?;
+        let writer = pair
+            .master
+            .take_writer()
+            .map_err(|e| format!("Failed to take PTY writer: {}", e))?;
 
-        // Read from stdout on a background thread
-        let _sid1 = session_id.clone();
-        let _ah1 = app_handle.clone();
+        let sid = session_id.clone();
+        let ah = app_handle.clone();
+
+        // Read output from the PTY master on a background thread
         tokio::task::spawn_blocking(move || {
-            let mut buf = [0u8; 4096];
+            let mut buf = [0u8; 65536];
+            let mut reader = reader;
             loop {
-                match stdout.read(&mut buf) {
+                match reader.read(&mut buf) {
                     Ok(0) => break, // EOF
                     Ok(n) => {
+                        // PTY output is in system encoding — convert to UTF-8 for the frontend
                         let data = decode_from_system(&buf[..n]);
-                        let _ = ah1.emit("local-terminal-output", serde_json::json!({
-                            "session_id": sid1,
-                            "data": data,
-                        }));
-                    }
-                    Err(_) => break,
-                }
-            }
-        });
-
-        // Read from stderr on a background thread, emitting the same event
-        let _sid2 = session_id.clone();
-        let _ah2 = app_handle.clone();
-        tokio::task::spawn_blocking(move || {
-            let mut buf = [0u8; 4096];
-            loop {
-                match stderr.read(&mut buf) {
-                    Ok(0) => break,
-                    Ok(n) => {
-                        let data = decode_from_system(&buf[..n]);
-                        let _ = ah2.emit("local-terminal-output", serde_json::json!({
-                            "session_id": sid2,
-                            "data": data,
-                        }));
+                        let _ = ah.emit(
+                            "local-terminal-output",
+                            serde_json::json!({
+                                "session_id": sid,
+                                "data": data,
+                            }),
+                        );
                     }
                     Err(_) => break,
                 }
@@ -190,8 +189,9 @@ impl LocalShellService {
         });
 
         let proc = LocalShellProcess {
-            child,
-            stdin_writer,
+            _child: child,
+            _master: pair.master,
+            writer,
         };
 
         self.sessions.lock().await.insert(session_id.clone(), proc);
@@ -205,29 +205,41 @@ impl LocalShellService {
     ) -> Result<(), String> {
         let mut sessions = self.sessions.lock().await;
         if let Some(proc) = sessions.get_mut(session_id) {
-            // Convert input from UTF-8 to the system encoding (e.g. GBK on Chinese Windows)
+            // Convert input from UTF-8 to the system encoding
+            // (ConPTY expects the child process's code page, e.g. GBK on Chinese Windows)
             let encoded = encode_to_system(data);
-            proc.stdin_writer
+            proc.writer
                 .write_all(&encoded)
-                .and_then(|_| proc.stdin_writer.flush())
-                .map_err(|e| format!("Failed to write to shell: {}", e))?;
+                .and_then(|_| proc.writer.flush())
+                .map_err(|e| format!("Failed to write to PTY: {}", e))?;
         }
         Ok(())
     }
 
     pub async fn resize_shell(
         &self,
-        _session_id: &str,
-        _cols: u16,
-        _rows: u16,
+        session_id: &str,
+        cols: u16,
+        rows: u16,
     ) -> Result<(), String> {
+        let mut sessions = self.sessions.lock().await;
+        if let Some(proc) = sessions.get_mut(session_id) {
+            proc._master
+                .resize(PtySize {
+                    rows,
+                    cols,
+                    pixel_width: 0,
+                    pixel_height: 0,
+                })
+                .map_err(|e| format!("Failed to resize PTY: {}", e))?;
+        }
         Ok(())
     }
 
     pub async fn kill_shell(&self, session_id: &str) -> Result<(), String> {
         let mut sessions = self.sessions.lock().await;
         if let Some(mut proc) = sessions.remove(session_id) {
-            let _ = proc.child.kill();
+            let _ = proc._child.kill();
         }
         Ok(())
     }

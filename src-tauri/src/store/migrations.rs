@@ -83,6 +83,64 @@ pub fn run_migrations(conn: &mut Connection) -> Result<(), rusqlite::Error> {
         )?;
     }
 
+    if current_version < 3 {
+        // Fix app_settings schema: old version had (id INTEGER, settings_json TEXT)
+        // but the CRUD code queries (key, value). Migrate to proper key-value format.
+        let has_old_schema: bool = tx
+            .prepare("SELECT name FROM pragma_table_info('app_settings') WHERE name='settings_json'")
+            .and_then(|mut s| s.exists([]))
+            .unwrap_or(false);
+
+        if has_old_schema {
+            // Migrate from old JSON-blob schema to key-value schema
+            let old_json: String = tx
+                .query_row(
+                    "SELECT COALESCE(settings_json, '{}') FROM app_settings WHERE id = 1",
+                    [],
+                    |row| row.get(0),
+                )
+                .unwrap_or_else(|_| "{}".to_string());
+
+            tx.execute("DROP TABLE IF EXISTS app_settings", [])?;
+            tx.execute_batch(
+                "CREATE TABLE app_settings (
+                    key    TEXT PRIMARY KEY,
+                    value  TEXT NOT NULL
+                );"
+            )?;
+
+            // Parse old JSON blob and insert as key-value pairs
+            if let Ok(parsed) = serde_json::from_str::<std::collections::HashMap<String, serde_json::Value>>(&old_json) {
+                for (k, v) in &parsed {
+                    let val_str = match v {
+                        serde_json::Value::String(s) => s.clone(),
+                        other => other.to_string(),
+                    };
+                    let _ = tx.execute(
+                        "INSERT OR IGNORE INTO app_settings (key, value) VALUES (?1, ?2)",
+                        rusqlite::params![k, val_str],
+                    );
+                }
+            }
+        } else {
+            // Table might already have key-value schema from a manual fix, or doesn't exist yet
+            let table_exists: bool = tx
+                .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='app_settings'")
+                .and_then(|mut s| s.exists([]))
+                .unwrap_or(false);
+            if !table_exists {
+                tx.execute_batch(
+                    "CREATE TABLE app_settings (
+                        key    TEXT PRIMARY KEY,
+                        value  TEXT NOT NULL
+                    );"
+                )?;
+            }
+        }
+
+        tx.execute("INSERT INTO _migrations (version) VALUES (3)", [])?;
+    }
+
     tx.commit()?;
     log::info!("Database migrations completed successfully");
     Ok(())

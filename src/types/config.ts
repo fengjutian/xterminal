@@ -15,7 +15,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   theme: 'dark',
   font_family: "Consolas, 'Courier New', monospace",
   font_size: 14,
-  cursor_style: 'block',
+  cursor_style: 'bar',
   default_download_path: '',
   default_upload_path: '',
   log_level: 'info',

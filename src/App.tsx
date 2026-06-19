@@ -10,7 +10,7 @@ import WelcomeScreen from "./components/WelcomeScreen";
 import { useTerminalStore } from "./stores/terminalStore";
 import { useConnectionStore } from "./stores/connectionStore";
 import { useAppStore } from "./stores/appStore";
-import type { ConnectionConfig } from "./types";
+import type { AppSettings, ConnectionConfig } from "./types";
 
 export default function App() {
   const [activeView, setActiveView] = useState<"terminal" | "files">("terminal");
@@ -31,6 +31,20 @@ export default function App() {
   useEffect(() => {
     fetchConnections();
   }, [fetchConnections]);
+
+  // Load persisted settings from backend on mount
+  const updateSettings = useAppStore((s) => s.updateSettings);
+  useEffect(() => {
+    (async () => {
+      try {
+        const { invoke } = await import("@tauri-apps/api/core");
+        const settings: AppSettings = await invoke("get_app_settings");
+        updateSettings(settings);
+      } catch (e) {
+        console.warn("Failed to load settings from backend, using defaults:", e);
+      }
+    })();
+  }, [updateSettings]);
 
   // Ctrl+Tab / Ctrl+Shift+Tab keyboard shortcut for tab switching
   // Ctrl+Shift+T keyboard shortcut for new local terminal

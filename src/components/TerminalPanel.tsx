@@ -1,7 +1,9 @@
 import { useEffect, useRef, useCallback } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
+import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { useTerminalStore } from "../stores/terminalStore";
+import { useAppStore } from "../stores/appStore";
 import "@xterm/xterm/css/xterm.css";
 
 type SessionKind = "local" | "ssh";
@@ -24,20 +26,29 @@ export default function TerminalPanel() {
 
   const activeTab = tabs.find((t) => t.id === activeTabId) ?? null;
 
+  const cursorStyle = useAppStore((s) => s.settings.cursor_style);
+
   // Initialize xterm.js instance once
   useEffect(() => {
     if (!containerRef.current) return;
 
     const term = new Terminal({
+      allowProposedApi: true,
       cursorBlink: true,
+      cursorStyle: cursorStyle as "block" | "underline" | "bar",
       fontSize: 14,
-      fontFamily: "Consolas, 'Courier New', monospace",
+      fontFamily:
+        "Consolas, 'Microsoft YaHei Mono', 'Noto Sans Mono CJK SC', 'Courier New', monospace",
       theme: {
         background: "#1e1e2e",
         foreground: "#cdd6f4",
         cursor: "#89b4fa",
       },
     });
+
+    const unicode11Addon = new Unicode11Addon();
+    term.loadAddon(unicode11Addon);
+    term.unicode.activeVersion = "11";
 
     const fitAddon = new FitAddon();
     term.loadAddon(fitAddon);
@@ -155,7 +166,10 @@ export default function TerminalPanel() {
     if (!term) return;
 
     const disposable = term.onData((data: string) => {
-      writeToBackend(data);
+      // Windows shells (cmd/PowerShell) expect BS (0x08) for backspace,
+      // but xterm.js sends DEL (0x7f) by default — convert it.
+      const normalized = data.replace(/\x7f/g, "\x08");
+      writeToBackend(normalized);
     });
 
     return () => {

@@ -31,7 +31,7 @@ impl Default for AppSettings {
             theme: "dark".to_string(),
             font_family: "Consolas, 'Courier New', monospace".to_string(),
             font_size: 14,
-            cursor_style: "block".to_string(),
+            cursor_style: "bar".to_string(),
             default_download_path: String::new(),
             default_upload_path: String::new(),
             log_level: "info".to_string(),

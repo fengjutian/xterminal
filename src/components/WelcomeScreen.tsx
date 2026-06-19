@@ -263,11 +263,6 @@ export default function WelcomeScreen({
           </div>
         </div>
       )}
-
-      {/* Footer hint */}
-      <p className="welcome-footer-hint">
-        Saved connections appear here. Use the sidebar to manage them.
-      </p>
     </div>
   );
 }
