@@ -12,7 +12,7 @@ interface ConnectionState {
   deleteConnection: (id: string) => Promise<void>;
 }
 
-export const useConnectionStore = create<ConnectionState>((set, get) => ({
+export const useConnectionStore = create<ConnectionState>((set) => ({
   connections: [],
   loading: false,
   error: null,

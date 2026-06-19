@@ -16,7 +16,7 @@ pub fn store_credential(label: &str, secret: &str) -> Result<String, String> {
         .map_err(|e| format!("Failed to create keyring entry: {}", e))?;
 
     entry
-        .set_secret(secret)
+        .set_secret(secret.as_bytes())
         .map_err(|e| format!("Failed to store secret: {}", e))?;
 
     Ok(label.to_string())
@@ -27,9 +27,12 @@ pub fn get_credential(label: &str) -> Result<String, String> {
     let entry = Entry::new(SERVICE_NAME, label)
         .map_err(|e| format!("Failed to access keyring: {}", e))?;
 
-    entry
+    let secret = entry
         .get_secret()
-        .map_err(|e| format!("Failed to retrieve secret: {}", e))
+        .map_err(|e| format!("Failed to retrieve secret: {}", e))?;
+
+    String::from_utf8(secret)
+        .map_err(|e| format!("Failed to decode secret as UTF-8: {}", e))
 }
 
 /// Delete a credential from the system keyring

@@ -24,7 +24,7 @@ pub async fn ftp_connect(
     timeout_secs: u32,
 ) -> Result<String, String> {
     // TODO: Implement via suppaftp
-    let session_id = uuid::Uuid::new_v4().to_string();
+    let _session_id = uuid::Uuid::new_v4().to_string();
     let _ = (host, port, username, password, use_tls, passive_mode, timeout_secs);
     Err("FTP connection not yet implemented".to_string())
 }

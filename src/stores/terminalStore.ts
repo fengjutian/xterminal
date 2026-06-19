@@ -19,7 +19,7 @@ interface TerminalState {
   updateSessionState: (sessionId: string, state: string) => void;
 }
 
-export const useTerminalStore = create<TerminalState>((set, get) => ({
+export const useTerminalStore = create<TerminalState>((set) => ({
   tabs: [],
   sessions: new Map(),
   activeTabId: null,

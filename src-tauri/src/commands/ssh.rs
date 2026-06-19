@@ -26,11 +26,11 @@ pub async fn ssh_connect(
     host: String,
     port: u16,
     username: String,
-    password: Option<String>,
-    private_key_path: Option<String>,
-    passphrase: Option<String>,
-    timeout_secs: u32,
-    keep_alive_secs: u32,
+    _password: Option<String>,
+    _private_key_path: Option<String>,
+    _passphrase: Option<String>,
+    _timeout_secs: u32,
+    _keep_alive_secs: u32,
 ) -> Result<String, String> {
     // TODO: Implement SSH connection via russh
     let session_id = uuid::Uuid::new_v4().to_string();

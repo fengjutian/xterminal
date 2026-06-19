@@ -1,17 +1,19 @@
 /// Database initialization and module orchestrator
 
 use rusqlite::Connection;
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 use std::path::PathBuf;
 
 use super::migrations;
 
 /// Get the database file path in the app data directory
+#[allow(dead_code)]
+#[allow(dead_code)]
 fn get_db_path(app_handle: &AppHandle) -> Result<PathBuf, String> {
     let app_dir = app_handle
-        .path_resolver()
+        .path()
         .app_data_dir()
-        .ok_or_else(|| "Failed to resolve app data directory".to_string())?;
+        .map_err(|e| format!("Failed to resolve app data directory: {}", e))?;
 
     std::fs::create_dir_all(&app_dir)
         .map_err(|e| format!("Failed to create app data dir: {}", e))?;
@@ -36,7 +38,7 @@ pub async fn init_database(app_handle: AppHandle) -> Result<(), String> {
 
     log::info!("Database path: {:?}", db_path);
 
-    let conn = Connection::open(&db_path)
+    let mut conn = Connection::open(&db_path)
         .map_err(|e| format!("Failed to open database: {}", e))?;
 
     // Enable WAL mode for better concurrent read performance
@@ -44,7 +46,8 @@ pub async fn init_database(app_handle: AppHandle) -> Result<(), String> {
         .map_err(|e| format!("Failed to set pragmas: {}", e))?;
 
     // Run all migrations
-    migrations::run_migrations(&conn)?;
+    migrations::run_migrations(&mut conn)
+        .map_err(|e| format!("Failed to run migrations: {}", e))?;
 
     log::info!("Database initialized successfully");
     Ok(())
@@ -56,7 +59,6 @@ pub mod connections {
     use crate::models::connection::{
         ConnectionConfig, CreateConnectionPayload, UpdateConnectionPayload, AuthMethod,
     };
-    use crate::security::keyring;
 
     pub fn list_all(conn: &Connection) -> Result<Vec<ConnectionConfig>, String> {
         let mut stmt = conn
@@ -109,19 +111,22 @@ pub mod connections {
         let now = chrono::Utc::now().to_rfc3339();
         let port = payload.port.unwrap_or(22);
         let auth_method = payload.auth_method.clone();
+        let encoding = payload.encoding.unwrap_or_else(|| "UTF-8".to_string());
+        let keep_alive_interval = payload.keep_alive_interval.unwrap_or(30);
+        let connection_timeout = payload.connection_timeout.unwrap_or(30);
         let keyring_id = if auth_method != AuthMethod::Password {
             let secret = payload.passphrase.as_deref().unwrap_or(
                 payload.password.as_deref().unwrap_or(""),
             );
             if !secret.is_empty() {
-                Some(keyring::store_secret(&format!("x-terminal-{}", id), secret)?)
+                Some(crate::security::keyring::store_credential(&format!("x-terminal-{}", id), secret)?)
             } else {
                 None
             }
         } else {
             let secret = payload.password.as_deref().unwrap_or("");
             if !secret.is_empty() {
-                Some(keyring::store_secret(&format!("x-terminal-{}", id), secret)?)
+                Some(crate::security::keyring::store_credential(&format!("x-terminal-{}", id), secret)?)
             } else {
                 None
             }
@@ -148,9 +153,9 @@ pub mod connections {
                 auth_method_str,
                 payload.private_key_path,
                 keyring_id,
-                payload.encoding.unwrap_or_else(|| "UTF-8".to_string()),
-                payload.keep_alive_interval.unwrap_or(30),
-                payload.connection_timeout.unwrap_or(30),
+                encoding,
+                keep_alive_interval,
+                connection_timeout,
                 0,
                 now,
                 now,
@@ -168,9 +173,9 @@ pub mod connections {
             auth_method,
             private_key_path: payload.private_key_path,
             keyring_id,
-            encoding: payload.encoding.unwrap_or_else(|| "UTF-8".to_string()),
-            keep_alive_interval: payload.keep_alive_interval.unwrap_or(30),
-            connection_timeout: payload.connection_timeout.unwrap_or(30),
+            encoding,
+            keep_alive_interval,
+            connection_timeout,
             sort_order: 0,
             created_at: now.clone(),
             updated_at: now,
@@ -291,7 +296,7 @@ pub mod connections {
             .ok();
 
         if let Some(kid) = keyring_id {
-            let _ = keyring::delete_secret(&kid);
+            let _ = crate::security::keyring::delete_credential(&kid);
         }
 
         conn.execute("DELETE FROM connections WHERE id = ?1", params![id])
