@@ -1,4 +1,5 @@
-﻿import { useTerminalStore } from "../stores/terminalStore";
+import { VscClose } from "react-icons/vsc";
+import { useTerminalStore } from "../stores/terminalStore";
 
 export default function TabBar() {
   const tabs = useTerminalStore((s) => s.tabs);
@@ -26,7 +27,7 @@ export default function TabBar() {
               closeTab(tab.id);
             }}
           >
-            x
+            <VscClose size={14} />
           </span>
         </div>
       ))}

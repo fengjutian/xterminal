@@ -1,4 +1,5 @@
-﻿import { useState } from "react";
+import { useState, useEffect } from "react";
+import { VscTerminalBash, VscFiles } from "react-icons/vsc";
 import Sidebar from "./components/Sidebar";
 import TabBar from "./components/TabBar";
 import TerminalPanel from "./components/TerminalPanel";
@@ -11,6 +12,38 @@ export default function App() {
   const [activeView, setActiveView] = useState<"terminal" | "files">("terminal");
   const [connected, setConnected] = useState(false);
   const createTab = useTerminalStore((s) => s.createTab);
+  const tabs = useTerminalStore((s) => s.tabs);
+  const activeTabId = useTerminalStore((s) => s.activeTabId);
+  const setActiveTab = useTerminalStore((s) => s.setActiveTab);
+
+  // Ctrl+Tab / Ctrl+Shift+Tab keyboard shortcut for tab switching
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!e.ctrlKey || e.key !== "Tab") return;
+      e.preventDefault();
+
+      if (tabs.length < 2) return;
+
+      const currentIndex = tabs.findIndex((t) => t.id === activeTabId);
+      if (currentIndex === -1) {
+        setActiveTab(tabs[0].id);
+        return;
+      }
+
+      if (e.shiftKey) {
+        // Ctrl+Shift+Tab: previous tab
+        const prevIndex = currentIndex === 0 ? tabs.length - 1 : currentIndex - 1;
+        setActiveTab(tabs[prevIndex].id);
+      } else {
+        // Ctrl+Tab: next tab
+        const nextIndex = currentIndex === tabs.length - 1 ? 0 : currentIndex + 1;
+        setActiveTab(tabs[nextIndex].id);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [tabs, activeTabId, setActiveTab]);
 
   const handleLocalTerminal = async () => {
     try {
@@ -48,14 +81,14 @@ export default function App() {
                     onClick={() => setActiveView("terminal")}
                     title="Terminal"
                   >
-                    {"</>"}
+                    <VscTerminalBash size={16} />
                   </button>
                   <button
                     className={`toolbar-btn ${activeView === "files" ? "active" : ""}`}
                     onClick={() => setActiveView("files")}
                     title="File Explorer"
                   >
-                    {"[ ]"}
+                    <VscFiles size={16} />
                   </button>
                 </div>
               </div>

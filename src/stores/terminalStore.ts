@@ -5,6 +5,7 @@ interface TerminalTab {
   id: string;
   sessionId: string;
   title: string;
+  kind: 'local' | 'ssh';
   isActive: boolean;
 }
 
@@ -30,6 +31,7 @@ export const useTerminalStore = create<TerminalState>((set) => ({
       id: tabId,
       sessionId: session.id,
       title: session.name,
+      kind: session.connection_id === 'local' ? 'local' : 'ssh',
       isActive: true,
     };
     set((s) => {

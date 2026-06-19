@@ -1,4 +1,5 @@
-﻿import { useTransferStore } from "../stores/transferStore";
+﻿import { VscChevronUp, VscChevronDown } from "react-icons/vsc";
+import { useTransferStore } from "../stores/transferStore";
 
 export default function TransferPanel() {
   const tasks = useTransferStore((s) => s.tasks);
@@ -12,7 +13,7 @@ export default function TransferPanel() {
       <div className="transfer-header">
         <span>Transfers ({tasks.length})</span>
         <button className="toolbar-btn" onClick={() => setPanelOpen(!isOpen)}>
-          {isOpen ? "-" : "+"}
+          {isOpen ? <VscChevronDown size={14} /> : <VscChevronUp size={14} />}
         </button>
       </div>
       {isOpen && (

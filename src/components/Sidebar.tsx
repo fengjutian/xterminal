@@ -1,9 +1,13 @@
-﻿export default function Sidebar() {
+import { VscAdd } from "react-icons/vsc";
+
+export default function Sidebar() {
   return (
     <div className="sidebar">
       <div className="sidebar-header">
         <h2>Connections</h2>
-        <button className="toolbar-btn" title="New Connection">+</button>
+        <button className="toolbar-btn" title="New Connection">
+          <VscAdd size={16} />
+        </button>
       </div>
       <div className="sidebar-list">
         <p style={{ padding: '16px', color: 'var(--text-muted)', fontSize: '12px' }}>

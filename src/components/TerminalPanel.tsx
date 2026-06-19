@@ -1,20 +1,29 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { useTerminalStore } from "../stores/terminalStore";
 import "@xterm/xterm/css/xterm.css";
+
+type SessionKind = "local" | "ssh";
+
+interface TerminalOutputEvent {
+  session_id: string;
+  data: number[];
+}
 
 export default function TerminalPanel() {
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const sessionIdRef = useRef<string | null>(null);
+  const sessionKindRef = useRef<SessionKind | null>(null);
 
   const activeTabId = useTerminalStore((s) => s.activeTabId);
   const tabs = useTerminalStore((s) => s.tabs);
 
-  const activeTab = tabs.find((t) => t.id === activeTabId);
+  const activeTab = tabs.find((t) => t.id === activeTabId) ?? null;
 
+  // Initialize xterm.js instance once
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -37,65 +46,112 @@ export default function TerminalPanel() {
     terminalRef.current = term;
     fitAddonRef.current = fitAddon;
 
-    // Listen for local terminal output events
-    const setupListener = async () => {
-      const { listen } = await import("@tauri-apps/api/event");
-      const unlisten = await listen<{ session_id: string; data: number[] }>(
-        "local-terminal-output",
-        (event) => {
-          if (event.payload.session_id === sessionIdRef.current) {
-            const data = new Uint8Array(event.payload.data);
-            term.write(data);
-          }
-        }
-      );
-      return unlisten;
-    };
-
-    let cleanup: (() => void) | undefined;
-    setupListener().then((fn) => {
-      cleanup = fn;
-    });
-
     return () => {
-      cleanup?.();
       term.dispose();
     };
   }, []);
 
-  // Track active session
+  // Set up event listeners for both local and SSH output
   useEffect(() => {
-    if (activeTab) {
-      sessionIdRef.current = activeTab.sessionId;
-    }
-  }, [activeTab]);
+    const cleanups: (() => void)[] = [];
 
-  // Handle keyboard input
+    const setupListeners = async () => {
+      const { listen } = await import("@tauri-apps/api/event");
+
+      // Listen for local terminal output
+      const unlistenLocal = await listen<TerminalOutputEvent>(
+        "local-terminal-output",
+        (event) => {
+          if (
+            event.payload.session_id === sessionIdRef.current &&
+            sessionKindRef.current === "local"
+          ) {
+            terminalRef.current?.write(new Uint8Array(event.payload.data));
+          }
+        }
+      );
+      cleanups.push(unlistenLocal);
+
+      // Listen for SSH terminal output
+      const unlistenSsh = await listen<TerminalOutputEvent>(
+        "ssh-terminal-output",
+        (event) => {
+          if (
+            event.payload.session_id === sessionIdRef.current &&
+            sessionKindRef.current === "ssh"
+          ) {
+            terminalRef.current?.write(new Uint8Array(event.payload.data));
+          }
+        }
+      );
+      cleanups.push(unlistenSsh);
+    };
+
+    setupListeners();
+
+    return () => {
+      cleanups.forEach((fn) => fn());
+    };
+  }, []);
+
+  const writeToBackend = useCallback(
+    async (data: string) => {
+      const sessionId = sessionIdRef.current;
+      const kind = sessionKindRef.current;
+      if (!sessionId || !kind) return;
+
+      try {
+        const { invoke } = await import("@tauri-apps/api/core");
+        const encoder = new TextEncoder();
+        const bytes = Array.from(encoder.encode(data));
+
+        if (kind === "local") {
+          await invoke("local_shell_write", { sessionId, data: bytes });
+        } else {
+          await invoke("ssh_write", { sessionId, data: bytes });
+        }
+      } catch (e) {
+        console.error(`Failed to write to ${kind} shell:`, e);
+      }
+    },
+    []
+  );
+
+  const resizeBackend = useCallback(
+    async (cols: number, rows: number) => {
+      const sessionId = sessionIdRef.current;
+      const kind = sessionKindRef.current;
+      if (!sessionId || !kind || cols <= 0 || rows <= 0) return;
+
+      try {
+        const { invoke } = await import("@tauri-apps/api/core");
+        if (kind === "local") {
+          await invoke("local_shell_resize", { sessionId, cols, rows });
+        } else {
+          await invoke("ssh_resize", { sessionId, cols, rows });
+        }
+      } catch {
+        // best-effort resize
+      }
+    },
+    []
+  );
+
+  // Attach keyboard input handler to terminal
   useEffect(() => {
     const term = terminalRef.current;
     if (!term) return;
 
-    const handleData = async (data: string) => {
-      if (!sessionIdRef.current) return;
-      try {
-        const { invoke } = await import("@tauri-apps/api/core");
-        const encoder = new TextEncoder();
-        await invoke("local_shell_write", {
-          sessionId: sessionIdRef.current,
-          data: Array.from(encoder.encode(data)),
-        });
-      } catch (e) {
-        console.error("Failed to write to shell:", e);
-      }
-    };
+    const disposable = term.onData((data: string) => {
+      writeToBackend(data);
+    });
 
-    const disposable = term.onData(handleData);
     return () => {
       disposable.dispose();
     };
-  }, []);
+  }, [writeToBackend]);
 
-  // Handle resize
+  // Handle resize observer
   useEffect(() => {
     const fitAddon = fitAddonRef.current;
     const term = terminalRef.current;
@@ -103,16 +159,7 @@ export default function TerminalPanel() {
 
     const handleResize = () => {
       fitAddon.fit();
-      // Notify backend of resize
-      if (sessionIdRef.current && term.rows > 0 && term.cols > 0) {
-        import("@tauri-apps/api/core").then(({ invoke }) => {
-          invoke("local_shell_resize", {
-            sessionId: sessionIdRef.current,
-            cols: term.cols,
-            rows: term.rows,
-          }).catch(() => {});
-        });
-      }
+      resizeBackend(term.cols, term.rows);
     };
 
     const observer = new ResizeObserver(handleResize);
@@ -123,7 +170,27 @@ export default function TerminalPanel() {
     handleResize();
 
     return () => observer.disconnect();
-  }, []);
+  }, [resizeBackend]);
+
+  // React to tab switches: clear terminal and switch session
+  useEffect(() => {
+    const term = terminalRef.current;
+    if (!term) return;
+
+    if (activeTab) {
+      sessionIdRef.current = activeTab.sessionId;
+      sessionKindRef.current = activeTab.kind;
+      term.clear();
+    } else {
+      sessionIdRef.current = null;
+      sessionKindRef.current = null;
+      term.clear();
+      term.writeln("\x1b[1;37mNo active terminal session.\x1b[0m");
+      term.writeln(
+        "\x1b[2;37mOpen a local terminal or connect to a remote host.\x1b[0m"
+      );
+    }
+  }, [activeTab]);
 
   return <div className="terminal-container" ref={containerRef} />;
 }

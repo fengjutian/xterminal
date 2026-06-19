@@ -1,50 +1,22 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#1e1e2e"/>
-      <stop offset="100%" stop-color="#11111b"/>
-    </linearGradient>
-    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%" stop-color="#89b4fa"/>
-      <stop offset="100%" stop-color="#74c7ec"/>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#a6e3a1"/>
+      <stop offset="100%" stop-color="#2ea043"/>
     </linearGradient>
     <filter id="glow">
-      <feGaussianBlur stdDeviation="8" result="blur"/>
-      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+      <feGaussianBlur stdDeviation="12" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
   </defs>
 
-  <!-- Background -->
-  <rect width="1024" height="1024" rx="180" fill="url(#bg)"/>
+  <rect width="1024" height="1024" rx="180" fill="#080808"/>
 
-  <!-- Terminal window top bar -->
-  <rect x="112" y="160" width="800" height="56" rx="28" fill="#181825" opacity="0.8"/>
-  <circle cx="152" cy="188" r="16" fill="#f38ba8"/>
-  <circle cx="204" cy="188" r="16" fill="#fab387"/>
-  <circle cx="256" cy="188" r="16" fill="#a6e3a1"/>
-
-  <!-- Terminal body -->
-  <path d="M112 216 h800 v524 q0 36 -36 36 h-728 q-36 0 -36 -36 Z" fill="#11111b" opacity="0.6"/>
-
-  <!-- Prompt line 1 -->
-  <text x="172" y="320" font-family="'Consolas','Courier New',monospace" font-size="42" font-weight="bold" fill="#a6e3a1">❯</text>
-  <text x="232" y="320" font-family="'Consolas','Courier New',monospace" font-size="38" fill="#cdd6f4">ssh user@server</text>
-
-  <!-- Prompt line 2 -->
-  <text x="172" y="400" font-family="'Consolas','Courier New',monospace" font-size="42" font-weight="bold" fill="#89b4fa">❯</text>
-  <rect x="240" y="378" width="180" height="6" rx="3" fill="#89b4fa" opacity="0.8" filter="url(#glow)"/>
-
-  <!-- Prompt line 3 -->
-  <text x="172" y="480" font-family="'Consolas','Courier New',monospace" font-size="42" font-weight="bold" fill="#89b4fa">❯</text>
-  <rect x="240" y="458" width="440" height="6" rx="3" fill="#cdd6f4" opacity="0.6"/>
-
-  <!-- Prompt line 4 -->
-  <text x="172" y="560" font-family="'Consolas','Courier New',monospace" font-size="42" font-weight="bold" fill="#89b4fa">❯</text>
-  <rect x="240" y="538" width="280" height="6" rx="3" fill="#6c7086" opacity="0.4"/>
-
-  <!-- Bottom bar accent -->
-  <rect x="112" y="760" width="800" height="6" rx="3" fill="url(#accent)" opacity="0.5"/>
-
-  <!-- X mark in bottom-right -->
-  <text x="750" y="700" font-family="'Consolas',monospace" font-size="200" font-weight="900" fill="#89b4fa" opacity="0.12">X</text>
+  <!-- X formed by two crossing lightning bolts -->
+  <g fill="url(#g)" filter="url(#glow)">
+    <!-- Top-left to bottom-right: lightning bolt -->
+    <path d="M140 140 L380 280 L320 320 L550 470 L490 520 L700 700 L630 800 L884 884 L824 760 L600 560 L660 510 L430 360 L490 320 L340 200 Z"/>
+    <!-- Top-right to bottom-left: lightning bolt -->
+    <path d="M884 140 L644 280 L704 320 L474 470 L534 520 L324 700 L394 800 L140 884 L200 760 L424 560 L364 510 L594 360 L534 320 L684 200 Z"/>
+  </g>
 </svg>

@@ -219,6 +219,18 @@ html, body, #root {
   padding: 8px;
 }
 
+.file-tree-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0 8px 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
 .file-list {
   flex: 1;
   overflow-y: auto;
@@ -334,6 +346,9 @@ html, body, #root {
   cursor: pointer;
   font-weight: 600;
   font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   transition: background var(--transition-fast), opacity var(--transition-fast);
 }
 
@@ -342,6 +357,9 @@ html, body, #root {
 .btn-secondary {
   background: var(--bg-surface);
   color: var(--text-primary);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   transition: background var(--transition-fast);
 }
 

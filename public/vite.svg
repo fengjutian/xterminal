@@ -1,10 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="6" fill="#1e1e2e"/>
-  <circle cx="9" cy="10" r="2.5" fill="#f38ba8"/>
-  <circle cx="16" cy="10" r="2.5" fill="#fab387"/>
-  <circle cx="23" cy="10" r="2.5" fill="#a6e3a1"/>
-  <rect x="3" y="14" width="26" height="14" rx="0 0 4 4" fill="#11111b" opacity="0.6"/>
-  <text x="6" y="23" font-family="monospace" font-size="8" font-weight="bold" fill="#a6e3a1">❯</text>
-  <text x="11" y="23" font-family="monospace" font-size="7" fill="#89b4fa">ssh</text>
-  <rect x="3" y="26" width="26" height="1.5" rx="0.5" fill="#89b4fa" opacity="0.5"/>
+  <rect width="32" height="32" rx="6" fill="#080808"/>
+  <g fill="#2ea043" opacity="0.9">
+    <path d="M4 4 L12 9 L10 10 L17 15 L15 16 L22 22 L20 25 L28 28 L26 24 L19 18 L21 16 L13 11 L15 10 L11 6 Z"/>
+    <path d="M28 4 L20 9 L22 10 L15 15 L17 16 L10 22 L12 25 L4 28 L6 24 L13 18 L11 16 L19 11 L17 10 L21 6 Z"/>
+  </g>
 </svg>
