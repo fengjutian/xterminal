@@ -1,0 +1,14 @@
+{
+  "identifier": "default",
+  "description": "Default capability for X-Terminal",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "dialog:default",
+    "dialog:allow-open",
+    "dialog:allow-save",
+    "shell:default",
+    "shell:allow-open",
+    "opener:default"
+  ]
+}

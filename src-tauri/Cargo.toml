@@ -1,0 +1,38 @@
+[package]
+name = "x-terminal"
+version = "0.1.0"
+description = "A Tauri-based cross-platform remote server management console"
+authors = ["x-terminal"]
+edition = "2021"
+rust-version = "1.77.2"
+
+[lib]
+name = "x_terminal_lib"
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-shell = "2"
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+uuid = { version = "1", features = ["v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+thiserror = "2"
+zeroize = { version = "1", features = ["derive"] }
+rusqlite = { version = "0.31", features = ["bundled"] }
+keyring = "3"
+russh = "0.44"
+russh-sftp = "2"
+suppaftp = "5"
+log = "0.4"
+env_logger = "0.11"
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
