@@ -41,6 +41,7 @@ pub fn run() {
             commands::connection::update_connection,
             commands::connection::delete_connection,
             commands::ssh::ssh_connect,
+            commands::ssh::ssh_connect_from_config,
             commands::ssh::ssh_disconnect,
             commands::ssh::ssh_write,
             commands::ssh::ssh_resize,

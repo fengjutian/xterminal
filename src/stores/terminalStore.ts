@@ -1,11 +1,11 @@
-import { create } from 'zustand';
-import type { SshSession } from '@/types';
+import { create } from "zustand";
+import type { SshSession } from "@/types";
 
 interface TerminalTab {
   id: string;
   sessionId: string;
   title: string;
-  kind: 'local' | 'ssh';
+  kind: "local" | "ssh";
   isActive: boolean;
 }
 
@@ -20,7 +20,7 @@ interface TerminalState {
   updateSessionState: (sessionId: string, state: string) => void;
 }
 
-export const useTerminalStore = create<TerminalState>((set) => ({
+export const useTerminalStore = create<TerminalState>((set, _get) => ({
   tabs: [],
   sessions: new Map(),
   activeTabId: null,
@@ -31,7 +31,7 @@ export const useTerminalStore = create<TerminalState>((set) => ({
       id: tabId,
       sessionId: session.id,
       title: session.name,
-      kind: session.connection_id === 'local' ? 'local' : 'ssh',
+      kind: session.connection_id === "local" ? "local" : "ssh",
       isActive: true,
     };
     set((s) => {
@@ -51,11 +51,29 @@ export const useTerminalStore = create<TerminalState>((set) => ({
       const remaining = s.tabs.filter((t) => t.id !== tabId);
       let newActive = s.activeTabId;
       if (s.activeTabId === tabId) {
-        newActive = remaining.length > 0 ? remaining[remaining.length - 1].id : null;
+        newActive =
+          remaining.length > 0 ? remaining[remaining.length - 1].id : null;
       }
       const newSessions = new Map(s.sessions);
       if (tab && !remaining.some((t) => t.sessionId === tab.sessionId)) {
         newSessions.delete(tab.sessionId);
+
+        // Clean up backend resources: kill/disconnect
+        const kind = tab.kind;
+        const sessionId = tab.sessionId;
+        // Fire-and-forget async cleanup
+        (async () => {
+          try {
+            const { invoke } = await import("@tauri-apps/api/core");
+            if (kind === "local") {
+              await invoke("local_shell_kill", { sessionId });
+            } else {
+              await invoke("ssh_disconnect", { sessionId });
+            }
+          } catch (e) {
+            console.error(`Failed to clean up ${kind} session ${sessionId}:`, e);
+          }
+        })();
       }
       return { tabs: remaining, sessions: newSessions, activeTabId: newActive };
     });
@@ -73,7 +91,10 @@ export const useTerminalStore = create<TerminalState>((set) => ({
       const newSessions = new Map(s.sessions);
       const session = newSessions.get(sessionId);
       if (session) {
-        newSessions.set(sessionId, { ...session, state: state as SshSession['state'] });
+        newSessions.set(sessionId, {
+          ...session,
+          state: state as SshSession["state"],
+        });
       }
       return { sessions: newSessions };
     });

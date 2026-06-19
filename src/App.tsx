@@ -1,26 +1,49 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect, useCallback } from "react";
 import { VscTerminalBash, VscFiles } from "react-icons/vsc";
 import Sidebar from "./components/Sidebar";
 import TabBar from "./components/TabBar";
 import TerminalPanel from "./components/TerminalPanel";
 import FileExplorer from "./components/FileExplorer";
 import TransferPanel from "./components/TransferPanel";
+import ConnectionDialog from "./components/ConnectionDialog";
 import WelcomeScreen from "./components/WelcomeScreen";
 import { useTerminalStore } from "./stores/terminalStore";
+import { useConnectionStore } from "./stores/connectionStore";
+import { useAppStore } from "./stores/appStore";
 import type { ConnectionConfig } from "./types";
 
 export default function App() {
   const [activeView, setActiveView] = useState<"terminal" | "files">("terminal");
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [connected, setConnected] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingConnection, setEditingConnection] = useState<ConnectionConfig | null>(null);
   const createTab = useTerminalStore((s) => s.createTab);
   const tabs = useTerminalStore((s) => s.tabs);
   const activeTabId = useTerminalStore((s) => s.activeTabId);
   const setActiveTab = useTerminalStore((s) => s.setActiveTab);
 
+  // Sidebar state from appStore (single source of truth)
+  const sidebarVisible = useAppStore((s) => s.sidebarVisible);
+  const toggleSidebar = useAppStore((s) => s.toggleSidebar);
+
+  // Fetch saved connections on mount
+  const fetchConnections = useConnectionStore((s) => s.fetchConnections);
+  useEffect(() => {
+    fetchConnections();
+  }, [fetchConnections]);
+
   // Ctrl+Tab / Ctrl+Shift+Tab keyboard shortcut for tab switching
+  // Ctrl+Shift+T keyboard shortcut for new local terminal
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+Shift+T: New local terminal tab
+      if (e.ctrlKey && e.shiftKey && e.key === "T") {
+        e.preventDefault();
+        handleLocalTerminal();
+        return;
+      }
+
+      // Ctrl+Tab / Ctrl+Shift+Tab: Tab switching
       if (!e.ctrlKey || e.key !== "Tab") return;
       e.preventDefault();
 
@@ -33,10 +56,12 @@ export default function App() {
       }
 
       if (e.shiftKey) {
-        const prevIndex = currentIndex === 0 ? tabs.length - 1 : currentIndex - 1;
+        const prevIndex =
+          currentIndex === 0 ? tabs.length - 1 : currentIndex - 1;
         setActiveTab(tabs[prevIndex].id);
       } else {
-        const nextIndex = currentIndex === tabs.length - 1 ? 0 : currentIndex + 1;
+        const nextIndex =
+          currentIndex === tabs.length - 1 ? 0 : currentIndex + 1;
         setActiveTab(tabs[nextIndex].id);
       }
     };
@@ -58,6 +83,10 @@ export default function App() {
         port: info.port,
         username: info.username,
         password: info.password || null,
+        privateKeyPath: null,
+        passphrase: null,
+        timeoutSecs: 30,
+        keepAliveSecs: 60,
       });
       createTab({
         id: sessionId,
@@ -73,7 +102,7 @@ export default function App() {
     }
   };
 
-  const handleLocalTerminal = async () => {
+  const handleLocalTerminal = useCallback(async () => {
     try {
       const { invoke } = await import("@tauri-apps/api/core");
       const sessionId: string = await invoke("local_shell_spawn", {
@@ -92,7 +121,7 @@ export default function App() {
     } catch (e) {
       console.error("Failed to spawn local terminal:", e);
     }
-  };
+  }, [createTab]);
 
   const handleSavedConnection = async (config: ConnectionConfig) => {
     try {
@@ -114,10 +143,35 @@ export default function App() {
     }
   };
 
+  const handleNewConnection = useCallback(() => {
+    setEditingConnection(null);
+    setDialogOpen(true);
+  }, []);
+
+  const handleEditConnection = useCallback((config: ConnectionConfig) => {
+    setEditingConnection(config);
+    setDialogOpen(true);
+  }, []);
+
+  const handleDialogClose = useCallback(() => {
+    setDialogOpen(false);
+    setEditingConnection(null);
+  }, []);
+
+  const handleDialogSaved = useCallback(() => {
+    setDialogOpen(false);
+    setEditingConnection(null);
+  }, []);
+
   return (
     <div className="app-container">
       <div className="app-main">
-        <Sidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed((v) => !v)} />
+        <Sidebar
+          collapsed={!sidebarVisible}
+          onToggle={toggleSidebar}
+          onNewConnection={handleNewConnection}
+          onEditConnection={handleEditConnection}
+        />
         <div className="app-workspace">
           {connected ? (
             <>
@@ -154,6 +208,13 @@ export default function App() {
           )}
         </div>
       </div>
+      {dialogOpen && (
+        <ConnectionDialog
+          editConfig={editingConnection}
+          onClose={handleDialogClose}
+          onSaved={handleDialogSaved}
+        />
+      )}
     </div>
   );
 }
