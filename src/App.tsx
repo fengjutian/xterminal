@@ -11,6 +11,7 @@ import type { ConnectionConfig } from "./types";
 
 export default function App() {
   const [activeView, setActiveView] = useState<"terminal" | "files">("terminal");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [connected, setConnected] = useState(false);
   const createTab = useTerminalStore((s) => s.createTab);
   const tabs = useTerminalStore((s) => s.tabs);
@@ -116,7 +117,7 @@ export default function App() {
   return (
     <div className="app-container">
       <div className="app-main">
-        <Sidebar />
+        <Sidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed((v) => !v)} />
         <div className="app-workspace">
           {connected ? (
             <>
