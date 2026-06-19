@@ -4,6 +4,8 @@ pub mod services;
 pub mod store;
 pub mod security;
 
+use tauri::Manager;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     env_logger::init();
@@ -14,15 +16,23 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             log::info!("X-Terminal starting up...");
-            // Initialize database
+            // Initialize database and store connection in state
             let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
-                if let Err(e) = store::database::init_database(app_handle).await {
-                    log::error!("Failed to initialize database: {}", e);
+                match store::database::init_database(&app_handle).await {
+                    Ok(conn) => {
+                        let db_state = app_handle.state::<commands::connection::DatabaseState>();
+                        *db_state.0.lock().await = Some(conn);
+                    }
+                    Err(e) => {
+                        log::error!("Failed to initialize database: {}", e);
+                    }
                 }
             });
             Ok(())
         })
+        .manage(commands::connection::DatabaseState::default())
+        .manage(commands::local_shell::LocalShellState::new())
         .invoke_handler(tauri::generate_handler![
             commands::connection::list_connections,
             commands::connection::create_connection,
@@ -43,6 +53,10 @@ pub fn run() {
             commands::ftp::ftp_list_files,
             commands::ftp::ftp_upload_file,
             commands::ftp::ftp_download_file,
+            commands::local_shell::local_shell_spawn,
+            commands::local_shell::local_shell_write,
+            commands::local_shell::local_shell_resize,
+            commands::local_shell::local_shell_kill,
             commands::config::get_app_settings,
             commands::config::update_app_settings,
         ])

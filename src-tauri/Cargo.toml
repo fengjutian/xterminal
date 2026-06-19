@@ -30,6 +30,7 @@ keyring = "3"
 russh = "0.44"
 russh-sftp = "2"
 suppaftp = "5"
+portable-pty = "0.8"
 log = "0.4"
 env_logger = "0.11"
 

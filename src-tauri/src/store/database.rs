@@ -21,10 +21,10 @@ fn get_db_path(app_handle: &AppHandle) -> Result<PathBuf, String> {
     Ok(app_dir.join("x-terminal.db"))
 }
 
-/// Initialize the database: create tables and run migrations
-pub async fn init_database(app_handle: AppHandle) -> Result<(), String> {
+/// Initialize the database: create tables and run migrations.
+/// Returns the open database connection.
+pub async fn init_database(app_handle: &AppHandle) -> Result<Connection, String> {
     let db_path = {
-        let app_handle = &app_handle;
         let app_dir = app_handle
             .path()
             .app_data_dir()
@@ -50,7 +50,7 @@ pub async fn init_database(app_handle: AppHandle) -> Result<(), String> {
         .map_err(|e| format!("Failed to run migrations: {}", e))?;
 
     log::info!("Database initialized successfully");
-    Ok(())
+    Ok(conn)
 }
 
 /// Module for connection config CRUD

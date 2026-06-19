@@ -42,7 +42,7 @@
     "linux": {}
   },
   "plugins": {
-    "dialog": {},
+    "dialog": null,
     "shell": {
       "open": true
     }
