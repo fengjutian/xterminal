@@ -1,6 +1,16 @@
-/// SFTP file transfer service (via Russh SFTP subsystem)
-/// 
-/// Provides file listing, upload and download on an existing SSH session.
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SftpFileEntry {
+    pub name: String,
+    pub path: String,
+    pub is_directory: bool,
+    pub is_symlink: bool,
+    pub size: u64,
+    pub modified: String,
+    pub permissions: String,
+    pub owner: Option<String>,
+    pub group: Option<String>,
+}
 
 pub struct SftpService;
 
@@ -9,60 +19,54 @@ impl SftpService {
         Self
     }
 
-    /// List files in a remote directory
     pub async fn list_files(
         &self,
         _session_id: &str,
         _remote_path: &str,
-    ) -> Result<Vec<crate::commands::sftp::SftpFileEntry>, String> {
-        Err("Not yet implemented".to_string())
+    ) -> Result<Vec<SftpFileEntry>, String> {
+        Err("SFTP not yet implemented — waiting for russh SSH integration".to_string())
     }
 
-    /// Upload a local file to remote
     pub async fn upload(
         &self,
         _session_id: &str,
         _local_path: &str,
         _remote_path: &str,
     ) -> Result<String, String> {
-        Err("Not yet implemented".to_string())
+        Err("SFTP upload not yet implemented".to_string())
     }
 
-    /// Download a remote file to local
     pub async fn download(
         &self,
         _session_id: &str,
         _remote_path: &str,
         _local_path: &str,
     ) -> Result<String, String> {
-        Err("Not yet implemented".to_string())
+        Err("SFTP download not yet implemented".to_string())
     }
 
-    /// Create directory on remote
     pub async fn mkdir(
         &self,
         _session_id: &str,
         _remote_path: &str,
     ) -> Result<(), String> {
-        Err("Not yet implemented".to_string())
+        Err("SFTP mkdir not yet implemented".to_string())
     }
 
-    /// Delete file or empty directory on remote
     pub async fn delete(
         &self,
         _session_id: &str,
         _remote_path: &str,
     ) -> Result<(), String> {
-        Err("Not yet implemented".to_string())
+        Err("SFTP delete not yet implemented".to_string())
     }
 
-    /// Rename / move remote file
     pub async fn rename(
         &self,
         _session_id: &str,
         _old_path: &str,
         _new_path: &str,
     ) -> Result<(), String> {
-        Err("Not yet implemented".to_string())
+        Err("SFTP rename not yet implemented".to_string())
     }
 }

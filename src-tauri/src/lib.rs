@@ -34,6 +34,7 @@ pub fn run() {
         .manage(commands::connection::DatabaseState::default())
         .manage(commands::local_shell::LocalShellState::new())
         .manage(commands::ssh::SshState::new())
+        .manage(commands::port_forward::PortForwardState::new())
         .invoke_handler(tauri::generate_handler![
             commands::connection::list_connections,
             commands::connection::create_connection,
@@ -58,6 +59,11 @@ pub fn run() {
             commands::local_shell::local_shell_write,
             commands::local_shell::local_shell_resize,
             commands::local_shell::local_shell_kill,
+            commands::port_forward::port_forward_create,
+            commands::port_forward::port_forward_start,
+            commands::port_forward::port_forward_stop,
+            commands::port_forward::port_forward_list,
+            commands::port_forward::port_forward_delete,
             commands::config::get_app_settings,
             commands::config::update_app_settings,
         ])

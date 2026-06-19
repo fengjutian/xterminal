@@ -6206,14 +6206,12 @@ dependencies = [
 name = "x-terminal"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "chrono",
  "env_logger",
  "keyring",
  "log",
  "rusqlite",
  "russh",
- "russh-keys",
  "russh-sftp",
  "serde",
  "serde_json",
