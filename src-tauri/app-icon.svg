@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1e1e2e"/>
+      <stop offset="100%" stop-color="#11111b"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#89b4fa"/>
+      <stop offset="100%" stop-color="#74c7ec"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1024" height="1024" rx="180" fill="url(#bg)"/>
+
+  <!-- Terminal window top bar -->
+  <rect x="112" y="160" width="800" height="56" rx="28" fill="#181825" opacity="0.8"/>
+  <circle cx="152" cy="188" r="16" fill="#f38ba8"/>
+  <circle cx="204" cy="188" r="16" fill="#fab387"/>
+  <circle cx="256" cy="188" r="16" fill="#a6e3a1"/>
+
+  <!-- Terminal body -->
+  <path d="M112 216 h800 v524 q0 36 -36 36 h-728 q-36 0 -36 -36 Z" fill="#11111b" opacity="0.6"/>
+
+  <!-- Prompt line 1 -->
+  <text x="172" y="320" font-family="'Consolas','Courier New',monospace" font-size="42" font-weight="bold" fill="#a6e3a1">❯</text>
+  <text x="232" y="320" font-family="'Consolas','Courier New',monospace" font-size="38" fill="#cdd6f4">ssh user@server</text>
+
+  <!-- Prompt line 2 -->
+  <text x="172" y="400" font-family="'Consolas','Courier New',monospace" font-size="42" font-weight="bold" fill="#89b4fa">❯</text>
+  <rect x="240" y="378" width="180" height="6" rx="3" fill="#89b4fa" opacity="0.8" filter="url(#glow)"/>
+
+  <!-- Prompt line 3 -->
+  <text x="172" y="480" font-family="'Consolas','Courier New',monospace" font-size="42" font-weight="bold" fill="#89b4fa">❯</text>
+  <rect x="240" y="458" width="440" height="6" rx="3" fill="#cdd6f4" opacity="0.6"/>
+
+  <!-- Prompt line 4 -->
+  <text x="172" y="560" font-family="'Consolas','Courier New',monospace" font-size="42" font-weight="bold" fill="#89b4fa">❯</text>
+  <rect x="240" y="538" width="280" height="6" rx="3" fill="#6c7086" opacity="0.4"/>
+
+  <!-- Bottom bar accent -->
+  <rect x="112" y="760" width="800" height="6" rx="3" fill="url(#accent)" opacity="0.5"/>
+
+  <!-- X mark in bottom-right -->
+  <text x="750" y="700" font-family="'Consolas',monospace" font-size="200" font-weight="900" fill="#89b4fa" opacity="0.12">X</text>
+</svg>

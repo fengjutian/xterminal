@@ -14,6 +14,13 @@
   --border: #45475a;
   --scrollbar-bg: #1e1e2e;
   --scrollbar-thumb: #45475a;
+  --transition-fast: 0.12s ease;
+  --transition-normal: 0.2s ease;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--bg-primary);
 }
 
 * {
@@ -81,7 +88,8 @@ html, body, #root {
   display: flex;
   align-items: center;
   gap: 8px;
-  transition: background 0.15s;
+  transition: background var(--transition-fast);
+  border-left: 3px solid transparent;
 }
 
 .connection-item:hover {
@@ -90,7 +98,8 @@ html, body, #root {
 
 .connection-item.active {
   background: var(--bg-surface);
-  border-left: 3px solid var(--accent);
+  border-left-color: var(--accent);
+  transition: border-left-color var(--transition-fast), background var(--transition-fast);
 }
 
 .connection-item .status-dot {
@@ -152,6 +161,7 @@ html, body, #root {
   background: var(--bg-tertiary);
   border: 1px solid var(--border);
   border-bottom: none;
+  transition: background var(--transition-fast), color var(--transition-fast);
 }
 
 .tab-item.active {
@@ -183,9 +193,11 @@ html, body, #root {
   cursor: pointer;
   border-radius: 4px;
   font-size: 12px;
+  transition: background var(--transition-fast), color var(--transition-fast);
 }
 
 .toolbar-btn:hover { background: var(--bg-surface); }
+.toolbar-btn:active { background: var(--border); }
 .toolbar-btn.active { color: var(--accent); }
 
 /* Terminal */
@@ -305,6 +317,7 @@ html, body, #root {
   color: var(--text-primary);
   font-size: 13px;
   width: 300px;
+  transition: border-color var(--transition-fast);
 }
 
 .quick-connect input:focus {
@@ -321,13 +334,18 @@ html, body, #root {
   cursor: pointer;
   font-weight: 600;
   font-size: 13px;
+  transition: background var(--transition-fast), opacity var(--transition-fast);
 }
 
 .btn:hover { background: var(--accent-hover); }
+.btn:active { opacity: 0.85; }
 .btn-secondary {
   background: var(--bg-surface);
   color: var(--text-primary);
+  transition: background var(--transition-fast);
 }
+
+.btn-secondary:hover { background: var(--border); }
 
 /* Scrollbar */
 ::-webkit-scrollbar {
@@ -346,4 +364,24 @@ html, body, #root {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+/* Focus visible */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Prevent text selection on UI chrome */
+.sidebar,
+.tab-bar,
+.workspace-toolbar,
+.transfer-panel {
+  user-select: none;
 }
