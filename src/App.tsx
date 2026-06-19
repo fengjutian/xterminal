@@ -7,6 +7,7 @@ import FileExplorer from "./components/FileExplorer";
 import TransferPanel from "./components/TransferPanel";
 import WelcomeScreen from "./components/WelcomeScreen";
 import { useTerminalStore } from "./stores/terminalStore";
+import type { ConnectionConfig } from "./types";
 
 export default function App() {
   const [activeView, setActiveView] = useState<"terminal" | "files">("terminal");
@@ -31,11 +32,9 @@ export default function App() {
       }
 
       if (e.shiftKey) {
-        // Ctrl+Shift+Tab: previous tab
         const prevIndex = currentIndex === 0 ? tabs.length - 1 : currentIndex - 1;
         setActiveTab(tabs[prevIndex].id);
       } else {
-        // Ctrl+Tab: next tab
         const nextIndex = currentIndex === tabs.length - 1 ? 0 : currentIndex + 1;
         setActiveTab(tabs[nextIndex].id);
       }
@@ -44,6 +43,34 @@ export default function App() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [tabs, activeTabId, setActiveTab]);
+
+  const handleQuickConnect = async (info: {
+    host: string;
+    port: number;
+    username: string;
+    password: string;
+  }) => {
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      const sessionId: string = await invoke("ssh_connect", {
+        host: info.host,
+        port: info.port,
+        username: info.username,
+        password: info.password || null,
+      });
+      createTab({
+        id: sessionId,
+        connection_id: `quick-${info.host}`,
+        name: `${info.username}@${info.host}`,
+        host: `${info.host}:${info.port}`,
+        state: "connected",
+        connected_at: new Date().toISOString(),
+      });
+      setConnected(true);
+    } catch (e) {
+      console.error("Failed to connect:", e);
+    }
+  };
 
   const handleLocalTerminal = async () => {
     try {
@@ -63,6 +90,26 @@ export default function App() {
       setConnected(true);
     } catch (e) {
       console.error("Failed to spawn local terminal:", e);
+    }
+  };
+
+  const handleSavedConnection = async (config: ConnectionConfig) => {
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      const sessionId: string = await invoke("ssh_connect_from_config", {
+        configId: config.id,
+      });
+      createTab({
+        id: sessionId,
+        connection_id: config.id,
+        name: config.name,
+        host: `${config.host}:${config.port}`,
+        state: "connected",
+        connected_at: new Date().toISOString(),
+      });
+      setConnected(true);
+    } catch (e) {
+      console.error("Failed to connect via saved config:", e);
     }
   };
 
@@ -99,8 +146,9 @@ export default function App() {
             </>
           ) : (
             <WelcomeScreen
-              onConnect={() => setConnected(true)}
+              onConnect={handleQuickConnect}
               onLocalTerminal={handleLocalTerminal}
+              onSavedConnection={handleSavedConnection}
             />
           )}
         </div>

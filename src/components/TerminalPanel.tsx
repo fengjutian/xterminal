@@ -53,10 +53,12 @@ export default function TerminalPanel() {
 
   // Set up event listeners for both local and SSH output
   useEffect(() => {
+    let cancelled = false;
     const cleanups: (() => void)[] = [];
 
     const setupListeners = async () => {
       const { listen } = await import("@tauri-apps/api/event");
+      if (cancelled) return;
 
       // Listen for local terminal output
       const unlistenLocal = await listen<TerminalOutputEvent>(
@@ -70,6 +72,10 @@ export default function TerminalPanel() {
           }
         }
       );
+      if (cancelled) {
+        unlistenLocal();
+        return;
+      }
       cleanups.push(unlistenLocal);
 
       // Listen for SSH terminal output
@@ -84,12 +90,17 @@ export default function TerminalPanel() {
           }
         }
       );
+      if (cancelled) {
+        unlistenSsh();
+        return;
+      }
       cleanups.push(unlistenSsh);
     };
 
     setupListeners();
 
     return () => {
+      cancelled = true;
       cleanups.forEach((fn) => fn());
     };
   }, []);
