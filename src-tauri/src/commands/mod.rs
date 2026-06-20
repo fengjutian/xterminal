@@ -1,6 +1,7 @@
 pub mod connection;
 pub mod config;
 pub mod ftp;
+pub mod local_fs;
 pub mod local_shell;
 pub mod port_forward;
 pub mod sftp;
