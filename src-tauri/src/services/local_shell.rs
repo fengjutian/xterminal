@@ -16,7 +16,7 @@ use encoding_rs::UTF_8;
 /// On non-Windows, always returns UTF-8.
 #[cfg(windows)]
 fn system_encoding() -> &'static encoding_rs::Encoding {
-    let cp = windows_GetACP();
+    let cp = windows_get_acp();
     match cp {
         936 | 54936 => encoding_rs::GBK,
         950 => encoding_rs::BIG5,
@@ -33,7 +33,7 @@ extern "system" {
 }
 
 #[cfg(windows)]
-fn windows_GetACP() -> u32 {
+fn windows_get_acp() -> u32 {
     unsafe { GetACP() }
 }
 

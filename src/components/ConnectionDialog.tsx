@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import {
-  VscClose,
   VscServer,
   VscKey,
   VscPass,
@@ -8,6 +7,10 @@ import {
   VscSettingsGear,
   VscInfo,
 } from 'react-icons/vsc';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
+import { Label } from './ui/label';
+import { Input } from './ui/input';
+import { Button } from './ui/button';
 import { useConnectionStore } from '../stores/connectionStore';
 import type { ConnectionConfig, AuthMethod, CreateConnectionPayload } from '../types';
 
@@ -147,60 +150,49 @@ export default function ConnectionDialog({ editConfig, onClose, onSaved }: Props
     }
   };
 
-  const handleBackdropClick = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).classList.contains('dialog-backdrop')) {
-      onClose();
-    }
-  };
-
   return (
-    <div className="dialog-backdrop" onClick={handleBackdropClick}>
-      <div className="dialog">
-        <div className="dialog-header">
-          <h2>{isEdit ? 'Edit Connection' : 'New Connection'}</h2>
-          <button className="toolbar-btn" onClick={onClose}>
-            <VscClose size={18} />
-          </button>
-        </div>
+    <Dialog open={true} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="sm:max-w-[520px] max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{isEdit ? 'Edit Connection' : 'New Connection'}</DialogTitle>
+        </DialogHeader>
 
-        <div className="dialog-body">
-          {error && (
-            <div className="dialog-error">
-              <VscInfo size={14} />
-              <span>{error}</span>
-            </div>
-          )}
+        {error && (
+          <div className="flex items-center gap-2 rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2 text-sm text-destructive">
+            <VscInfo size={14} className="shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
 
+        <div className="grid gap-4 py-2">
           {/* Connection Name */}
-          <div className="dialog-field">
-            <label className="dialog-label">Connection Name</label>
-            <input
-              type="text"
-              className="dialog-input"
-              placeholder="My Server"
+          <div className="grid gap-1.5">
+            <Label htmlFor="name">Connection Name</Label>
+            <Input
+              id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              placeholder="My Server"
               autoFocus
             />
           </div>
 
           {/* Host & Port row */}
-          <div className="dialog-row">
-            <div className="dialog-field" style={{ flex: 1 }}>
-              <label className="dialog-label">Host</label>
-              <input
-                type="text"
-                className="dialog-input"
-                placeholder="192.168.1.1 or example.com"
+          <div className="flex gap-3">
+            <div className="flex-1 grid gap-1.5">
+              <Label htmlFor="host">Host</Label>
+              <Input
+                id="host"
                 value={host}
                 onChange={(e) => setHost(e.target.value)}
+                placeholder="192.168.1.1 or example.com"
               />
             </div>
-            <div className="dialog-field" style={{ width: 100 }}>
-              <label className="dialog-label">Port</label>
-              <input
+            <div className="w-[100px] grid gap-1.5">
+              <Label htmlFor="port">Port</Label>
+              <Input
+                id="port"
                 type="number"
-                className="dialog-input"
                 min={1}
                 max={65535}
                 value={port}
@@ -210,70 +202,66 @@ export default function ConnectionDialog({ editConfig, onClose, onSaved }: Props
           </div>
 
           {/* Username */}
-          <div className="dialog-field">
-            <label className="dialog-label">Username</label>
-            <input
-              type="text"
-              className="dialog-input"
-              placeholder="root"
+          <div className="grid gap-1.5">
+            <Label htmlFor="username">Username</Label>
+            <Input
+              id="username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
+              placeholder="root"
             />
           </div>
 
           {/* Authentication Method */}
-          <div className="dialog-field">
-            <label className="dialog-label">Authentication</label>
-            <div className="dialog-radio-group">
-              <label className="dialog-radio">
-                <input
-                  type="radio"
-                  name="auth_method"
-                  value="password"
-                  checked={authMethod === 'password'}
-                  onChange={() => setAuthMethod('password')}
-                />
-                <VscPass size={14} />
-                <span>Password</span>
-              </label>
-              <label className="dialog-radio">
-                <input
-                  type="radio"
-                  name="auth_method"
-                  value="key_file"
-                  checked={authMethod === 'key_file'}
-                  onChange={() => setAuthMethod('key_file')}
-                />
-                <VscKey size={14} />
-                <span>Key File</span>
-              </label>
-              <label className="dialog-radio">
-                <input
-                  type="radio"
-                  name="auth_method"
-                  value="key_file_with_passphrase"
-                  checked={authMethod === 'key_file_with_passphrase'}
-                  onChange={() => setAuthMethod('key_file_with_passphrase')}
-                />
-                <VscKey size={14} />
-                <span>Key + Passphrase</span>
-              </label>
+          <div className="grid gap-1.5">
+            <Label>Authentication</Label>
+            <div className="flex border border-input rounded-md overflow-hidden">
+              {([
+                { value: 'password' as AuthMethod, icon: VscPass, label: 'Password' },
+                { value: 'key_file' as AuthMethod, icon: VscKey, label: 'Key File' },
+                { value: 'key_file_with_passphrase' as AuthMethod, icon: VscKey, label: 'Key + Passphrase' },
+              ]).map((opt, i) => (
+                <label
+                  key={opt.value}
+                  className={[
+                    'flex-1 flex items-center justify-center gap-1.5 px-2 py-2 cursor-pointer text-xs transition-colors',
+                    'text-muted-foreground hover:text-foreground',
+                    authMethod === opt.value
+                      ? 'bg-accent text-accent-foreground font-semibold'
+                      : 'bg-transparent',
+                    i < 2 ? 'border-r border-input' : '',
+                  ].join(' ')}
+                >
+                  <input
+                    type="radio"
+                    name="auth_method"
+                    value={opt.value}
+                    checked={authMethod === opt.value}
+                    onChange={() => setAuthMethod(opt.value)}
+                    className="sr-only"
+                  />
+                  <opt.icon size={14} />
+                  <span>{opt.label}</span>
+                </label>
+              ))}
             </div>
           </div>
 
           {/* Password field (only for password auth) */}
           {authMethod === 'password' && (
-            <div className="dialog-field">
-              <label className="dialog-label">Password</label>
-              <input
+            <div className="grid gap-1.5">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
                 type="password"
-                className="dialog-input"
-                placeholder={isEdit ? '(unchanged if blank)' : 'Password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                placeholder={isEdit ? '(unchanged if blank)' : 'Password'}
               />
               {isEdit && (
-                <p className="dialog-hint">Leave blank to keep existing password.</p>
+                <p className="text-[11px] text-muted-foreground leading-tight">
+                  Leave blank to keep existing password.
+                </p>
               )}
             </div>
           )}
@@ -281,33 +269,32 @@ export default function ConnectionDialog({ editConfig, onClose, onSaved }: Props
           {/* Private Key fields */}
           {(authMethod === 'key_file' || authMethod === 'key_file_with_passphrase') && (
             <>
-              <div className="dialog-field">
-                <label className="dialog-label">Private Key Path</label>
-                <div className="dialog-input-row">
-                  <input
-                    type="text"
-                    className="dialog-input"
-                    placeholder="~/.ssh/id_rsa"
+              <div className="grid gap-1.5">
+                <Label htmlFor="privateKey">Private Key Path</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="privateKey"
                     value={privateKeyPath}
                     onChange={(e) => setPrivateKeyPath(e.target.value)}
-                    style={{ flex: 1 }}
+                    placeholder="~/.ssh/id_rsa"
+                    className="flex-1"
                   />
-                  <button className="btn" onClick={handleBrowseKey}>
+                  <Button variant="outline" size="sm" onClick={handleBrowseKey}>
                     <VscFolderOpened size={14} />
                     <span>Browse</span>
-                  </button>
+                  </Button>
                 </div>
               </div>
 
               {authMethod === 'key_file_with_passphrase' && (
-                <div className="dialog-field">
-                  <label className="dialog-label">Passphrase</label>
-                  <input
+                <div className="grid gap-1.5">
+                  <Label htmlFor="passphrase">Passphrase</Label>
+                  <Input
+                    id="passphrase"
                     type="password"
-                    className="dialog-input"
-                    placeholder={isEdit ? '(unchanged if blank)' : 'Key passphrase'}
                     value={passphrase}
                     onChange={(e) => setPassphrase(e.target.value)}
+                    placeholder={isEdit ? '(unchanged if blank)' : 'Key passphrase'}
                   />
                 </div>
               )}
@@ -315,11 +302,12 @@ export default function ConnectionDialog({ editConfig, onClose, onSaved }: Props
           )}
 
           {/* Group */}
-          <div className="dialog-field">
-            <label className="dialog-label">Group (optional)</label>
-            <div className="dialog-input-row">
+          <div className="grid gap-1.5">
+            <Label htmlFor="group">Group (optional)</Label>
+            <div className="flex gap-2">
               <select
-                className="dialog-select"
+                id="group"
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 cursor-pointer"
                 value={groupId}
                 onChange={(e) => {
                   setGroupId(e.target.value);
@@ -335,36 +323,38 @@ export default function ConnectionDialog({ editConfig, onClose, onSaved }: Props
                 <option value="__new__">+ New group...</option>
               </select>
               {groupId === '__new__' && (
-                <input
-                  type="text"
-                  className="dialog-input"
+                <Input
                   placeholder="Group name"
                   value={newGroupName}
                   onChange={(e) => setNewGroupName(e.target.value)}
                   autoFocus
-                  style={{ flex: 1 }}
+                  className="flex-1"
                 />
               )}
             </div>
           </div>
 
           {/* Advanced Settings */}
-          <div className="dialog-advanced">
+          <div>
             <button
-              className="dialog-advanced-toggle"
+              type="button"
+              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer bg-transparent border-none p-0 font-inherit"
               onClick={() => setShowAdvanced(!showAdvanced)}
             >
               <VscSettingsGear size={14} />
               <span>Advanced Settings</span>
-              <span className={`chevron ${showAdvanced ? 'open' : ''}`}>&#9654;</span>
+              <span className={`text-[10px] transition-transform ${showAdvanced ? 'rotate-90' : ''}`}>
+                ▶
+              </span>
             </button>
 
             {showAdvanced && (
-              <div className="dialog-advanced-body">
-                <div className="dialog-field">
-                  <label className="dialog-label">Encoding</label>
+              <div className="mt-3 grid gap-4 pl-4 border-l-2 border-border">
+                <div className="grid gap-1.5">
+                  <Label htmlFor="encoding">Encoding</Label>
                   <select
-                    className="dialog-select"
+                    id="encoding"
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 cursor-pointer"
                     value={encoding}
                     onChange={(e) => setEncoding(e.target.value)}
                   >
@@ -377,12 +367,12 @@ export default function ConnectionDialog({ editConfig, onClose, onSaved }: Props
                   </select>
                 </div>
 
-                <div className="dialog-row">
-                  <div className="dialog-field" style={{ flex: 1 }}>
-                    <label className="dialog-label">Connection Timeout (seconds)</label>
-                    <input
+                <div className="flex gap-3">
+                  <div className="flex-1 grid gap-1.5">
+                    <Label htmlFor="timeout">Connection Timeout (seconds)</Label>
+                    <Input
+                      id="timeout"
                       type="number"
-                      className="dialog-input"
                       min={5}
                       max={120}
                       value={connectionTimeout}
@@ -391,11 +381,11 @@ export default function ConnectionDialog({ editConfig, onClose, onSaved }: Props
                       }
                     />
                   </div>
-                  <div className="dialog-field" style={{ flex: 1 }}>
-                    <label className="dialog-label">Keep-Alive Interval (seconds)</label>
-                    <input
+                  <div className="flex-1 grid gap-1.5">
+                    <Label htmlFor="keepalive">Keep-Alive Interval (seconds)</Label>
+                    <Input
+                      id="keepalive"
                       type="number"
-                      className="dialog-input"
                       min={0}
                       max={600}
                       value={keepAliveInterval}
@@ -403,7 +393,7 @@ export default function ConnectionDialog({ editConfig, onClose, onSaved }: Props
                         setKeepAliveInterval(parseInt(e.target.value, 10) || 0)
                       }
                     />
-                    <p className="dialog-hint">0 = disabled</p>
+                    <p className="text-[11px] text-muted-foreground leading-tight">0 = disabled</p>
                   </div>
                 </div>
               </div>
@@ -411,16 +401,16 @@ export default function ConnectionDialog({ editConfig, onClose, onSaved }: Props
           </div>
         </div>
 
-        <div className="dialog-footer">
-          <button className="btn btn-secondary" onClick={onClose}>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
             Cancel
-          </button>
-          <button className="btn" onClick={handleSave} disabled={saving}>
+          </Button>
+          <Button onClick={handleSave} disabled={saving}>
             <VscServer size={14} />
-            <span>{saving ? 'Saving...' : isEdit ? 'Update' : 'Save'}</span>
-          </button>
-        </div>
-      </div>
-    </div>
+            {saving ? 'Saving...' : isEdit ? 'Update' : 'Save'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

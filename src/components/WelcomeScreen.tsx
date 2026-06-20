@@ -106,7 +106,7 @@ export default function WelcomeScreen({
       {/* Hero */}
       <div className="welcome-hero">
         <div className="welcome-logo">
-          <VscTerminalBash size={48} />
+          <img src="/logo.png" alt="X-Terminal" width="48" height="48" />
         </div>
         <h1 className="welcome-title">X-Terminal</h1>
         <p className="welcome-subtitle">Remote Server Management Console</p>

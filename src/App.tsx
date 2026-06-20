@@ -1,5 +1,5 @@
 ﻿import { useState, useEffect, useCallback } from "react";
-import { VscTerminalBash, VscFiles, VscAdd } from "react-icons/vsc";
+import { VscTerminalBash, VscFiles, VscAdd, VscHome } from "react-icons/vsc";
 import Sidebar from "./components/Sidebar";
 import TabBar from "./components/TabBar";
 import TerminalPanel from "./components/TerminalPanel";
@@ -18,6 +18,7 @@ export default function App() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingConnection, setEditingConnection] = useState<ConnectionConfig | null>(null);
   const createTab = useTerminalStore((s) => s.createTab);
+  const closeTab = useTerminalStore((s) => s.closeTab);
   const tabs = useTerminalStore((s) => s.tabs);
   const activeTabId = useTerminalStore((s) => s.activeTabId);
   const setActiveTab = useTerminalStore((s) => s.setActiveTab);
@@ -177,6 +178,13 @@ export default function App() {
     setEditingConnection(null);
   }, []);
 
+  const handleGoHome = useCallback(() => {
+    // Close all tabs to clean up backend resources
+    tabs.forEach((tab) => closeTab(tab.id));
+    setConnected(false);
+    setActiveView("terminal");
+  }, [tabs, closeTab]);
+
   return (
     <div className="app-container">
       <div className="app-main">
@@ -192,6 +200,14 @@ export default function App() {
               <div className="workspace-toolbar">
                 <TabBar />
                 <div className="toolbar-actions">
+                  <button
+                    className="toolbar-btn"
+                    onClick={handleGoHome}
+                    title="回到首页"
+                  >
+                    <VscHome size={16} />
+                  </button>
+                  <div className="toolbar-divider" />
                   <button
                     className="toolbar-btn"
                     onClick={handleLocalTerminal}
