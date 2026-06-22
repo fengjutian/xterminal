@@ -109,7 +109,7 @@ export default function WelcomeScreen({
           <img src="/logo.png" alt="X-Terminal" width="48" height="48" />
         </div>
         <h1 className="welcome-title">X-Terminal</h1>
-        <p className="welcome-subtitle">Remote Server Management Console</p>
+        <p className="welcome-subtitle">远程服务器管理控制台</p>
       </div>
 
       {/* Quick Connect Card */}
@@ -122,8 +122,8 @@ export default function WelcomeScreen({
             <VscRemote size={20} />
           </span>
           <div className="welcome-card-info">
-            <span className="welcome-card-label">Quick Connect</span>
-            <span className="welcome-card-desc">SSH to a remote server</span>
+            <span className="welcome-card-label">快速连接</span>
+            <span className="welcome-card-desc">SSH 连接到远程服务器</span>
           </div>
           <VscLink size={16} className="welcome-card-chevron" />
         </button>
@@ -201,12 +201,12 @@ export default function WelcomeScreen({
               {connecting ? (
                 <>
                   <VscSync size={16} className="spin" />
-                  <span>Connecting…</span>
+                  <span>连接中…</span>
                 </>
               ) : (
                 <>
                   <VscRemote size={16} />
-                  <span>Connect</span>
+                  <span>连接</span>
                 </>
               )}
             </button>
@@ -228,16 +228,16 @@ export default function WelcomeScreen({
             <VscTerminalBash size={20} />
           </span>
           <div className="welcome-card-info">
-            <span className="welcome-card-label">Open Local Terminal</span>
-            <span className="welcome-card-desc">PowerShell / bash on this machine</span>
+            <span className="welcome-card-label">打开本地终端</span>
+            <span className="welcome-card-desc">本机 PowerShell / bash</span>
           </div>
           <VscLink size={16} className="welcome-card-chevron" />
         </button>
 
         <div className="welcome-card-body">
           <p className="welcome-hint">
-            Launch a local shell session directly. Use{" "}
-            <kbd>Ctrl+Shift+T</kbd> to open new tabs later.
+            直接启动本地 Shell 会话。之后可用{" "}
+            <kbd>Ctrl+Shift+T</kbd> 打开新标签页。
           </p>
         </div>
       </div>
@@ -245,7 +245,7 @@ export default function WelcomeScreen({
       {/* Saved Connections */}
       {connections.length > 0 && (
         <div className="welcome-saved-section">
-          <h3 className="welcome-section-title">Saved Connections</h3>
+          <h3 className="welcome-section-title">已保存的连接</h3>
           <div className="welcome-saved-list">
             {connections.map((conn) => (
               <button
