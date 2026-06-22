@@ -137,6 +137,41 @@ html, body, #root {
   color: var(--accent);
 }
 
+/* Sidebar view toggle */
+.sidebar-view-toggle {
+  display: flex;
+  gap: 2px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.sidebar-view-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: inherit;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.sidebar-view-btn:hover {
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+}
+
+.sidebar-view-btn.active {
+  background: var(--bg-surface);
+  color: var(--accent);
+}
+
 .sidebar-list {
   flex: 1;
   overflow-y: auto;

@@ -1,5 +1,5 @@
 ﻿import { useState, useEffect, useCallback } from "react";
-import { VscTerminalBash, VscFiles, VscAdd, VscHome } from "react-icons/vsc";
+import { VscAdd, VscHome } from "react-icons/vsc";
 import Sidebar from "./components/Sidebar";
 import TabBar from "./components/TabBar";
 import TerminalPanel from "./components/TerminalPanel";
@@ -299,6 +299,8 @@ export default function App() {
           onNewConnection={handleNewConnection}
           onEditConnection={handleEditConnection}
           onConnect={handleSavedConnection}
+          activeView={activeView}
+          onViewChange={setActiveView}
         />
         <div className="app-workspace">
           {connectionError && (
@@ -331,21 +333,6 @@ export default function App() {
                     title="新建终端（Ctrl+Shift+T）"
                   >
                     <VscAdd size={16} />
-                  </button>
-                  <div className="toolbar-divider" />
-                  <button
-                    className={`toolbar-btn ${activeView === "terminal" ? "active" : ""}`}
-                    onClick={() => setActiveView("terminal")}
-                    title="终端"
-                  >
-                    <VscTerminalBash size={16} />
-                  </button>
-                  <button
-                    className={`toolbar-btn ${activeView === "files" ? "active" : ""}`}
-                    onClick={() => setActiveView("files")}
-                    title="文件管理器"
-                  >
-                    <VscFiles size={16} />
                   </button>
                 </div>
               </div>

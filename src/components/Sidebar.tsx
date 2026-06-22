@@ -6,6 +6,8 @@ import {
   VscEdit,
   VscTrash,
   VscChevronDown,
+  VscTerminalBash,
+  VscFiles,
 } from "react-icons/vsc";
 import { useState, useMemo } from "react";
 import { useConnectionStore } from "../stores/connectionStore";
@@ -17,6 +19,8 @@ interface SidebarProps {
   onNewConnection: () => void;
   onEditConnection: (config: ConnectionConfig) => void;
   onConnect: (config: ConnectionConfig) => void;
+  activeView: "terminal" | "files";
+  onViewChange: (view: "terminal" | "files") => void;
 }
 
 interface GroupedConnections {
@@ -31,6 +35,8 @@ export default function Sidebar({
   onNewConnection,
   onEditConnection,
   onConnect,
+  activeView,
+  onViewChange,
 }: SidebarProps) {
   const connections = useConnectionStore((s) => s.connections);
   const deleteConnection = useConnectionStore((s) => s.deleteConnection);
@@ -104,6 +110,27 @@ export default function Sidebar({
                 </button>
               </div>
             </div>
+
+            {/* View Toggle — always visible */}
+            <div className="sidebar-view-toggle">
+              <button
+                className={`sidebar-view-btn ${activeView === "terminal" ? "active" : ""}`}
+                onClick={() => onViewChange("terminal")}
+                title="终端"
+              >
+                <VscTerminalBash size={16} />
+                <span>终端</span>
+              </button>
+              <button
+                className={`sidebar-view-btn ${activeView === "files" ? "active" : ""}`}
+                onClick={() => onViewChange("files")}
+                title="文件管理器"
+              >
+                <VscFiles size={16} />
+                <span>文件管理器</span>
+              </button>
+            </div>
+
             <div className="sidebar-list">
               {connections.length === 0 ? (
                 <p
