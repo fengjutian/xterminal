@@ -271,12 +271,13 @@ export default function App() {
 
   const handleHostKeyClose = useCallback(() => {
     // If user dismisses via X, reject any pending verification
-    if (hostKeyVerifyPayload) {
-      handleHostKeyReject(hostKeyVerifyPayload.session_id);
+    const sessionId = hostKeyVerifyPayload?.session_id ?? hostKeyChangedPayload?.session_id;
+    if (sessionId) {
+      handleHostKeyReject(sessionId);
     }
     setHostKeyVerifyPayload(null);
     setHostKeyChangedPayload(null);
-  }, [hostKeyVerifyPayload, handleHostKeyReject]);
+  }, [hostKeyVerifyPayload, hostKeyChangedPayload, handleHostKeyReject]);
 
   return (
     <div className="app-container">

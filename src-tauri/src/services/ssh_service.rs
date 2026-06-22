@@ -6,9 +6,10 @@
 /// Host key verification:
 /// - Known keys (fingerprint matches) → accepted automatically
 /// - Unknown keys → "host-key-confirm" event sent to frontend, user decides
-/// - Key mismatch → "host-key-changed" event sent to frontend, connection rejected
+/// - Key mismatch → "host-key-changed" event sent to frontend, user decides
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::Mutex;
 use tokio::sync::oneshot;
 use tauri::Emitter;
@@ -21,6 +22,7 @@ use async_trait::async_trait;
 use encoding_rs::{UTF_8, GBK, BIG5, SHIFT_JIS, EUC_KR};
 
 use crate::models::connection::HostKeyVerificationPayload;
+use crate::models::connection::HostKeyChangedPayload;
 
 /// Convert an encoding string (e.g. "UTF-8", "GBK") to the corresponding encoding_rs encoding.
 fn encoding_from_str(name: &str) -> &'static encoding_rs::Encoding {
@@ -34,15 +36,24 @@ fn encoding_from_str(name: &str) -> &'static encoding_rs::Encoding {
     }
 }
 
+/// Map a PublicKey enum variant to its standard SSH algorithm name.
+fn key_algorithm_name(key: &russh_keys::key::PublicKey) -> &'static str {
+    key.name()
+}
+
 // ---------------------------------------------------------------------------
 // Shared pending key confirmations — resolved by ssh_confirm_host_key command
 // ---------------------------------------------------------------------------
 pub type PendingKeyMap = Arc<Mutex<HashMap<String, oneshot::Sender<bool>>>>;
 
+/// Host key confirmation timeout (120 seconds).
+/// If the user does not respond within this window the connection is rejected.
+const HOST_KEY_TIMEOUT_SECS: u64 = 120;
+
 // ---------------------------------------------------------------------------
 // Session handle stored in the service map
 // ---------------------------------------------------------------------------
-struct SshSession {
+pub struct SshSession {
     handle: client::Handle<SshClientHandler>,
     channel: Channel<Msg>,
     read_task: tokio::task::JoinHandle<()>,
@@ -72,19 +83,15 @@ impl Handler for SshClientHandler {
     /// 1. Compute SHA-256 fingerprint of the server's public key
     /// 2. If a known fingerprint exists:
     ///    - Match → accept (return true)
-    ///    - Mismatch → emit "host-key-changed" event, reject (return false)
+    ///    - Mismatch → emit "host-key-changed" event, wait for user decision
     /// 3. If no known fingerprint (first connection):
     ///    - Emit "host-key-confirm" event to frontend
-    ///    - Wait for user decision via oneshot channel
+    ///    - Wait for user decision via oneshot channel (with 120s timeout)
     async fn check_server_key(
         &mut self,
         server_public_key: &russh_keys::key::PublicKey,
     ) -> Result<bool, Self::Error> {
-        // Get the key algorithm name (e.g., "ssh-rsa", "ecdsa-sha2-nistp256")
-        let algorithm = format!("{:?}", server_public_key);
-
-        // Compute SHA-256 fingerprint using russh's built-in hash function
-        // fingerprint() returns standard "SHA256:base64..." format
+        let algorithm = key_algorithm_name(server_public_key);
         let fingerprint = server_public_key.fingerprint();
 
         log::info!(
@@ -99,70 +106,126 @@ impl Handler for SshClientHandler {
                     "[ssh {}] Host key matches known fingerprint — accepted",
                     self.session_id
                 );
-                Ok(true)
-            } else {
-                log::warn!(
-                    "[ssh {}] HOST KEY MISMATCH! known={} received={}",
-                    self.session_id, known, fingerprint
-                );
-                // Emit mismatch event — frontend can show a warning
-                let _ = self.app_handle.emit(
-                    "host-key-changed",
-                    serde_json::json!({
-                        "session_id": self.session_id,
-                        "host": self.host,
-                        "port": self.port,
-                        "key_type": algorithm,
-                        "expected_fingerprint": known,
-                        "received_fingerprint": fingerprint,
-                    }),
-                );
-                // Reject the connection — safety first
-                Ok(false)
+                return Ok(true);
             }
-        } else {
-            // Unknown host key — ask user to confirm
-            let (tx, rx) = oneshot::channel();
 
-            // Store the sender in the shared map keyed by session_id
+            // Key mismatch — possible MITM, ask user to decide
+            log::warn!(
+                "[ssh {}] HOST KEY MISMATCH! known={} received={}",
+                self.session_id, known, fingerprint
+            );
+
+            // Store a oneshot sender so ssh_confirm_host_key can resolve it
+            let (tx, rx) = oneshot::channel();
             {
                 let mut map = self.pending_keys.lock().await;
                 map.insert(self.session_id.clone(), tx);
             }
 
-            // Emit event to frontend
-            let payload = HostKeyVerificationPayload {
-                session_id: self.session_id.clone(),
-                host: self.host.clone(),
-                port: self.port,
-                key_type: algorithm,
-                fingerprint,
-            };
-
-            let _ = self.app_handle.emit("host-key-confirm", &payload);
+            let _ = self.app_handle.emit(
+                "host-key-changed",
+                &HostKeyChangedPayload {
+                    session_id: self.session_id.clone(),
+                    host: self.host.clone(),
+                    port: self.port,
+                    key_type: algorithm.to_string(),
+                    expected_fingerprint: known.clone(),
+                    received_fingerprint: fingerprint,
+                },
+            );
 
             log::info!(
-                "[ssh {}] Waiting for user to confirm unknown host key...",
+                "[ssh {}] Waiting for user to decide on host key mismatch...",
                 self.session_id
             );
 
-            // Wait for the user's decision (blocking the connection handshake)
-            match rx.await {
-                Ok(true) => {
-                    log::info!("[ssh {}] User accepted host key — connecting", self.session_id);
+            // Wait for the user's decision (with timeout)
+            return match tokio::time::timeout(Duration::from_secs(HOST_KEY_TIMEOUT_SECS), rx).await
+            {
+                Ok(Ok(true)) => {
+                    log::info!(
+                        "[ssh {}] User accepted new host key — connecting",
+                        self.session_id
+                    );
                     Ok(true)
                 }
-                Ok(false) => {
-                    log::info!("[ssh {}] User rejected host key — aborting", self.session_id);
+                Ok(Ok(false)) => {
+                    log::info!(
+                        "[ssh {}] User rejected host key — aborting",
+                        self.session_id
+                    );
                     Ok(false)
                 }
-                Err(_) => {
+                Ok(Err(_)) => {
                     log::warn!(
                         "[ssh {}] Host key confirmation channel closed — rejecting",
                         self.session_id
                     );
                     Ok(false)
                 }
+                Err(_) => {
+                    log::warn!(
+                        "[ssh {}] Host key confirmation timed out after {}s — rejecting",
+                        self.session_id,
+                        HOST_KEY_TIMEOUT_SECS
+                    );
+                    Ok(false)
+                }
+            };
+        }
+
+        // Unknown host key — ask user to confirm
+        let (tx, rx) = oneshot::channel();
+        {
+            let mut map = self.pending_keys.lock().await;
+            map.insert(self.session_id.clone(), tx);
+        }
+
+        let payload = HostKeyVerificationPayload {
+            session_id: self.session_id.clone(),
+            host: self.host.clone(),
+            port: self.port,
+            key_type: algorithm.to_string(),
+            fingerprint,
+        };
+
+        let _ = self.app_handle.emit("host-key-confirm", &payload);
+
+        log::info!(
+            "[ssh {}] Waiting for user to confirm unknown host key...",
+            self.session_id
+        );
+
+        // Wait for the user's decision (with timeout)
+        match tokio::time::timeout(Duration::from_secs(HOST_KEY_TIMEOUT_SECS), rx).await {
+            Ok(Ok(true)) => {
+                log::info!(
+                    "[ssh {}] User accepted host key — connecting",
+                    self.session_id
+                );
+                Ok(true)
+            }
+            Ok(Ok(false)) => {
+                log::info!(
+                    "[ssh {}] User rejected host key — aborting",
+                    self.session_id
+                );
+                Ok(false)
+            }
+            Ok(Err(_)) => {
+                log::warn!(
+                    "[ssh {}] Host key confirmation channel closed — rejecting",
+                    self.session_id
+                );
+                Ok(false)
+            }
+            Err(_) => {
+                log::warn!(
+                    "[ssh {}] Host key confirmation timed out after {}s — rejecting",
+                    self.session_id,
+                    HOST_KEY_TIMEOUT_SECS
+                );
+                Ok(false)
             }
         }
     }
@@ -202,7 +265,7 @@ impl Handler for SshClientHandler {
 // SSH Service
 // ---------------------------------------------------------------------------
 pub struct SshService {
-    sessions: Arc<Mutex<HashMap<String, SshSession>>>,
+    pub sessions: Arc<Mutex<HashMap<String, SshSession>>>,
 }
 
 impl SshService {
@@ -213,6 +276,11 @@ impl SshService {
     }
 
     /// Connect to a remote host via SSH.
+    ///
+    /// This is an associated function (not a method) so callers can pass the
+    /// `sessions` map directly without holding the SshState outer lock. This
+    /// prevents the lock from being held across the entire SSH handshake (which
+    /// can block for minutes during host key confirmation).
     ///
     /// Supports password and private-key authentication.
     /// A PTY is allocated and a shell is started.
@@ -225,7 +293,7 @@ impl SshService {
     /// `pending_keys` is the shared map used to resolve host key confirmations
     /// via the `ssh_confirm_host_key` Tauri command.
     pub async fn connect(
-        &self,
+        sessions: &Arc<Mutex<HashMap<String, SshSession>>>,
         host: &str,
         port: u16,
         username: &str,
@@ -328,7 +396,7 @@ impl SshService {
             encoding: enc,
         };
 
-        self.sessions
+        sessions
             .lock()
             .await
             .insert(session_id.clone(), session);

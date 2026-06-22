@@ -26,6 +26,11 @@ impl PendingKeyState {
 }
 
 /// Connect to remote server via SSH (quick connect)
+///
+/// IMPORTANT: The `SshState` lock is NOT held across the SSH handshake.
+/// We clone the sessions Arc, drop the lock, then call the static
+/// `SshService::connect()` function. This prevents deadlocks when the
+/// handshake blocks on host key confirmation (up to 120s timeout).
 #[tauri::command]
 pub async fn ssh_connect(
     state: State<'_, SshState>,
@@ -55,23 +60,28 @@ pub async fn ssh_connect(
         }
     };
 
-    let service = state.0.lock().await;
-    service
-        .connect(
-            &host,
-            port,
-            &username,
-            password.as_deref(),
-            private_key_path.as_deref(),
-            passphrase.as_deref(),
-            timeout_secs.unwrap_or(30),
-            keep_alive_secs.unwrap_or(60),
-            encoding.as_deref().unwrap_or("UTF-8"),
-            known_fingerprint,
-            pending.0.clone(),
-            app_handle,
-        )
-        .await
+    // Clone the sessions Arc and drop the SshState lock immediately.
+    // The connect call (which may block on host key confirmation for 120s)
+    // must NOT hold the SshState lock.
+    let sessions = state.0.lock().await.sessions.clone();
+    // lock released — sessions Arc is independent
+
+    SshService::connect(
+        &sessions,
+        &host,
+        port,
+        &username,
+        password.as_deref(),
+        private_key_path.as_deref(),
+        passphrase.as_deref(),
+        timeout_secs.unwrap_or(30),
+        keep_alive_secs.unwrap_or(60),
+        encoding.as_deref().unwrap_or("UTF-8"),
+        known_fingerprint,
+        pending.0.clone(),
+        app_handle,
+    )
+    .await
 }
 
 /// Connect using a saved connection config
@@ -156,23 +166,26 @@ pub async fn ssh_connect_from_config(
         (None, None)
     };
 
-    let service = state.0.lock().await;
-    service
-        .connect(
-            &config.host,
-            config.port,
-            &config.username,
-            password.as_deref(),
-            config.private_key_path.as_deref(),
-            passphrase.as_deref(),
-            config.connection_timeout,
-            config.keep_alive_interval,
-            &config.encoding,
-            known_fingerprint,
-            pending.0.clone(),
-            app_handle,
-        )
-        .await
+    // Clone sessions Arc and drop SshState lock before the potentially
+    // blocking connect call (host key confirmation can take up to 120s).
+    let sessions = state.0.lock().await.sessions.clone();
+
+    SshService::connect(
+        &sessions,
+        &config.host,
+        config.port,
+        &config.username,
+        password.as_deref(),
+        config.private_key_path.as_deref(),
+        passphrase.as_deref(),
+        config.connection_timeout,
+        config.keep_alive_interval,
+        &config.encoding,
+        known_fingerprint,
+        pending.0.clone(),
+        app_handle,
+    )
+    .await
 }
 
 /// Confirm or reject a pending SSH host key verification.
@@ -190,12 +203,22 @@ pub async fn ssh_confirm_host_key(
     // Resolve the pending key confirmation from the shared map
     {
         let mut map = pending.0.lock().await;
-        if let Some(sender) = map.remove(&session_id) {
-            sender.send(accept).map_err(|_| {
-                "Failed to send key confirmation — connection may have timed out".to_string()
-            })?;
-        } else {
-            return Err(format!("No pending key confirmation for session {}", session_id));
+        match map.remove(&session_id) {
+            Some(sender) => {
+                sender.send(accept).map_err(|_| {
+                    "Failed to send key confirmation — connection may have timed out".to_string()
+                })?;
+            }
+            None => {
+                // This can happen if the user clicks "Accept Anyway" or "Cancel"
+                // twice, or if the handshake already timed out. Not an error —
+                // just log and continue.
+                log::warn!(
+                    "No pending key confirmation for session {} (already resolved or timed out)",
+                    session_id
+                );
+                return Ok(());
+            }
         }
     }
 
