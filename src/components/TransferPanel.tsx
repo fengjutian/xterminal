@@ -11,7 +11,7 @@ export default function TransferPanel() {
   return (
     <div className="transfer-panel">
       <div className="transfer-header">
-        <span>Transfers ({tasks.length})</span>
+        <span>传输任务 ({tasks.length})</span>
         <button className="toolbar-btn" onClick={() => setPanelOpen(!isOpen)}>
           {isOpen ? <VscChevronDown size={14} /> : <VscChevronUp size={14} />}
         </button>
@@ -20,7 +20,7 @@ export default function TransferPanel() {
         <div className="transfer-list">
           {tasks.length === 0 ? (
             <p style={{ padding: '16px', color: 'var(--text-muted)', fontSize: '12px' }}>
-              No active transfers
+              暂无活跃传输
             </p>
           ) : (
             tasks.map((task) => (

@@ -146,6 +146,17 @@ export default function App() {
   }, [createTab]);
 
   const handleSavedConnection = async (config: ConnectionConfig) => {
+    // 如果已有该连接的标签，直接切换到它，不重复创建
+    const sessions = useTerminalStore.getState().sessions;
+    const existingTab = tabs.find((t) => {
+      const session = sessions.get(t.sessionId);
+      return session?.connection_id === config.id;
+    });
+    if (existingTab) {
+      setActiveTab(existingTab.id);
+      setConnected(true);
+      return;
+    }
     setConnectionError(null);
     try {
       const { invoke } = await import("@tauri-apps/api/core");
@@ -317,7 +328,7 @@ export default function App() {
                   <button
                     className="toolbar-btn"
                     onClick={handleLocalTerminal}
-                    title="New Terminal (Ctrl+Shift+T)"
+                    title="新建终端（Ctrl+Shift+T）"
                   >
                     <VscAdd size={16} />
                   </button>
@@ -325,14 +336,14 @@ export default function App() {
                   <button
                     className={`toolbar-btn ${activeView === "terminal" ? "active" : ""}`}
                     onClick={() => setActiveView("terminal")}
-                    title="Terminal"
+                    title="终端"
                   >
                     <VscTerminalBash size={16} />
                   </button>
                   <button
                     className={`toolbar-btn ${activeView === "files" ? "active" : ""}`}
                     onClick={() => setActiveView("files")}
-                    title="File Explorer"
+                    title="文件管理器"
                   >
                     <VscFiles size={16} />
                   </button>

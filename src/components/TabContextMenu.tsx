@@ -59,7 +59,7 @@ export default function TabContextMenu({ x, y, tabId, onClose }: Props) {
 
   const handleRename = useCallback(() => {
     if (!tab) return;
-    const newName = prompt("New tab name:", tab.title);
+    const newName = prompt("新标签名称：", tab.title);
     if (newName && newName.trim() && newName !== tab.title) {
       useTerminalStore.setState((s) => ({
         tabs: s.tabs.map((t) =>
@@ -82,12 +82,12 @@ export default function TabContextMenu({ x, y, tabId, onClose }: Props) {
     >
       <button className="context-menu-item" onClick={handleRename}>
         <VscEdit size={14} />
-        <span>Rename Tab</span>
+        <span>重命名标签</span>
       </button>
       <div className="context-menu-separator" />
       <button className="context-menu-item" onClick={handleClose}>
         <VscClose size={14} />
-        <span>Close Tab</span>
+        <span>关闭标签</span>
       </button>
       <button
         className="context-menu-item"
@@ -95,7 +95,7 @@ export default function TabContextMenu({ x, y, tabId, onClose }: Props) {
         disabled={tabs.length <= 1}
       >
         <VscFiles size={14} />
-        <span>Close Other Tabs</span>
+        <span>关闭其他标签</span>
       </button>
       <button
         className="context-menu-item"
@@ -103,7 +103,7 @@ export default function TabContextMenu({ x, y, tabId, onClose }: Props) {
         disabled={tabs.findIndex((t) => t.id === tabId) >= tabs.length - 1}
       >
         <VscSplitHorizontal size={14} />
-        <span>Close Tabs to the Right</span>
+        <span>关闭右侧标签</span>
       </button>
     </div>
   );

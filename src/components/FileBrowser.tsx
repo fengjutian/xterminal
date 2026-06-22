@@ -83,7 +83,7 @@ const Breadcrumb = memo(function Breadcrumb({
       <button
         className="breadcrumb-item"
         onClick={() => onNavigate('/')}
-        title="Root"
+        title="根目录"
       >
         <VscHome size={14} />
       </button>
@@ -145,10 +145,10 @@ const FileRow = memo(function FileRow({
             autoFocus
             onClick={(e) => e.stopPropagation()}
           />
-          <button className="toolbar-btn" onClick={onRenameSubmit} title="Confirm">
+          <button className="toolbar-btn" onClick={onRenameSubmit} title="确认">
             <VscCheck size={14} />
           </button>
-          <button className="toolbar-btn" onClick={onRenameCancel} title="Cancel">
+          <button className="toolbar-btn" onClick={onRenameCancel} title="取消">
             <VscClose size={14} />
           </button>
         </span>
@@ -178,10 +178,10 @@ const FileListHeader = memo(function FileListHeader({
   onSort: (field: 'name' | 'size' | 'modified' | 'permissions') => void;
 }) {
   const columns: { field: 'name' | 'size' | 'modified' | 'permissions'; label: string; width: string }[] = [
-    { field: 'name', label: 'Name', width: '1fr' },
-    { field: 'size', label: 'Size', width: '100px' },
-    { field: 'modified', label: 'Modified', width: '150px' },
-    { field: 'permissions', label: 'Perms', width: '100px' },
+    { field: 'name', label: '名称', width: '1fr' },
+    { field: 'size', label: '大小', width: '100px' },
+    { field: 'modified', label: '修改时间', width: '150px' },
+    { field: 'permissions', label: '权限', width: '100px' },
   ];
 
   return (
@@ -262,10 +262,10 @@ function FileContextMenu({
   if (entry.is_directory) {
     items.push({
       icon: <VscNewFolder size={14} />,
-      label: 'New Folder...',
+      label: '新建文件夹...',
       action: async () => {
         onClose();
-        const name = prompt('Folder name:');
+        const name = prompt('文件夹名称：');
         if (name) {
           const newPath = currentPath === '/' || currentPath === ''
             ? `/${name}`
@@ -282,7 +282,7 @@ function FileContextMenu({
   }
   items.push({
     icon: <VscEdit size={14} />,
-    label: 'Rename',
+    label: '重命名',
     action: async () => {
       onClose();
       onStartRename(entry);
@@ -291,13 +291,13 @@ function FileContextMenu({
   if (!entry.is_directory && mode === 'remote') {
     items.push({
       icon: <VscCloudDownload size={14} />,
-      label: 'Download',
+      label: '下载',
       action: async () => {
         onClose();
         const { save } = await import('@tauri-apps/plugin-dialog');
         const filePath = await save({
           defaultPath: entry.name,
-          title: 'Save file as',
+          title: '保存文件',
         });
         if (filePath && sessionId) {
           await remoteStore.getState().downloadFile(sessionId, entry.path, filePath as string);
@@ -308,12 +308,12 @@ function FileContextMenu({
   items.push({ label: 'separator', action: null });
   items.push({
     icon: <VscTrash size={14} color="var(--danger)" />,
-    label: 'Delete',
+    label: '删除',
     danger: true,
     action: async () => {
       onClose();
       const confirmed = confirm(
-        `Delete "${entry.name}"?${entry.is_directory ? '\nThis will delete the directory (if empty).' : ''}`
+        `确认删除"${entry.name}"？${entry.is_directory ? '\n这将一并删除目录（如果为空）。' : ''}`
       );
       if (confirmed) {
         if (mode === 'remote' && sessionId) {
@@ -421,7 +421,7 @@ function TreeView({
   if (!rootNode) {
     return (
       <p style={{ padding: 12, color: 'var(--text-muted)', fontSize: 12 }}>
-        Loading tree...
+        正在加载目录树...
       </p>
     );
   }
@@ -693,11 +693,11 @@ export default function FileBrowser({ mode }: FileBrowserProps) {
       <div className="fb-pane">
         <div className="fb-pane-header">
           <VscServer size={14} />
-          <span>Remote</span>
+          <span>远程</span>
         </div>
         <div className="fb-pane-empty">
           <VscWarning size={20} />
-          <span>No active session</span>
+          <span>无活跃会话</span>
         </div>
       </div>
     );
@@ -713,7 +713,7 @@ export default function FileBrowser({ mode }: FileBrowserProps) {
       {/* Header */}
       <div className="fb-pane-header">
         {isRemote ? <VscServer size={14} /> : <VscVm size={14} />}
-        <span>{isRemote ? 'Remote' : 'Local'}</span>
+        <span>{isRemote ? '远程' : '本地'}</span>
       </div>
 
       {/* Body: tree + file list */}
@@ -722,7 +722,7 @@ export default function FileBrowser({ mode }: FileBrowserProps) {
         <div className="file-tree">
           <div className="file-tree-header">
             <VscFolderOpened size={14} />
-            <span>Explorer</span>
+            <span>资源管理器</span>
           </div>
           <div className="file-tree-content">
             <TreeView
@@ -740,17 +740,17 @@ export default function FileBrowser({ mode }: FileBrowserProps) {
           <div className="file-toolbar">
             <Breadcrumb path={currentPath} onNavigate={handleNavigate} />
             <div className="file-toolbar-actions">
-              <button className="toolbar-btn" onClick={handleGoUp} title="Go up">
+              <button className="toolbar-btn" onClick={handleGoUp} title="上级目录">
                 <VscArrowUp size={16} />
               </button>
-              <button className="toolbar-btn" onClick={handleRefresh} title="Refresh">
+              <button className="toolbar-btn" onClick={handleRefresh} title="刷新">
                 <VscRefresh size={16} className={loading ? 'spin' : ''} />
               </button>
-              <button className="toolbar-btn" onClick={handleNewFolderToggle} title="New Folder">
+              <button className="toolbar-btn" onClick={handleNewFolderToggle} title="新建文件夹">
                 <VscNewFolder size={16} />
               </button>
               {isRemote && (
-                <button className="toolbar-btn" onClick={handleUpload} title="Upload files">
+                <button className="toolbar-btn" onClick={handleUpload} title="上传文件">
                   <VscCloudUpload size={16} />
                 </button>
               )}
@@ -766,7 +766,7 @@ export default function FileBrowser({ mode }: FileBrowserProps) {
           {/* Virtualized file rows */}
           <div className="file-list-body" ref={scrollRef}>
             {loading && entries.length === 0 && (
-              <div className="file-list-message">Loading...</div>
+              <div className="file-list-message">加载中...</div>
             )}
             {error && (
               <div className="file-list-message" style={{ color: 'var(--danger)' }}>
@@ -775,7 +775,7 @@ export default function FileBrowser({ mode }: FileBrowserProps) {
               </div>
             )}
             {!loading && !error && entries.length === 0 && (
-              <div className="file-list-message">Empty directory</div>
+              <div className="file-list-message">空目录</div>
             )}
 
             {/* Inline new-folder input */}
@@ -784,7 +784,7 @@ export default function FileBrowser({ mode }: FileBrowserProps) {
                 <VscFolder size={14} color="var(--accent)" />
                 <input
                   className="file-rename-input"
-                  placeholder="folder name"
+                  placeholder="文件夹名称"
                   value={newFolderValue}
                   onChange={(e) => setNewFolderValue(e.target.value)}
                   onKeyDown={(e) => {
@@ -796,7 +796,7 @@ export default function FileBrowser({ mode }: FileBrowserProps) {
                   }}
                   autoFocus
                 />
-                <button className="toolbar-btn" onClick={handleNewFolderSubmit} title="Confirm">
+                <button className="toolbar-btn" onClick={handleNewFolderSubmit} title="确认">
                   <VscCheck size={14} />
                 </button>
                 <button
@@ -805,7 +805,7 @@ export default function FileBrowser({ mode }: FileBrowserProps) {
                     setShowNewFolder(false);
                     setNewFolderValue('');
                   }}
-                  title="Cancel"
+                  title="取消"
                 >
                   <VscClose size={14} />
                 </button>
@@ -852,10 +852,10 @@ export default function FileBrowser({ mode }: FileBrowserProps) {
 
           {/* Status bar */}
           <div className="file-statusbar">
-            {entries.length} item{entries.length !== 1 ? 's' : ''}
+            {entries.length} 项
             {error && (
               <span style={{ color: 'var(--danger)', marginLeft: 12 }}>
-                Error: {error}
+                错误：{error}
               </span>
             )}
           </div>

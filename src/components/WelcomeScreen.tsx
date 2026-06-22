@@ -172,7 +172,7 @@ export default function WelcomeScreen({
                     id="qc-password"
                     type={showPassword ? "text" : "password"}
                     className="welcome-input"
-                    placeholder="Password (or use key)"
+                    placeholder="密码（或使用密钥）"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     onKeyDown={(e) => {

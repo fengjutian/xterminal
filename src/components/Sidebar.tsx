@@ -58,7 +58,7 @@ export default function Sidebar({
     if (ungrouped) {
       result.push({
         groupId: null,
-        groupName: "Ungrouped",
+        groupName: "未分组",
         connections: ungrouped,
       });
     }
@@ -75,7 +75,7 @@ export default function Sidebar({
   };
 
   const handleDelete = async (id: string, name: string) => {
-    if (confirm(`Delete connection "${name}"?`)) {
+    if (confirm(`确认删除连接"${name}"？`)) {
       await deleteConnection(id);
     }
   };
@@ -86,18 +86,18 @@ export default function Sidebar({
         {!collapsed && (
           <>
             <div className="sidebar-header">
-              <h2>Connections</h2>
+              <h2>连接列表</h2>
               <div className="sidebar-header-actions">
                 <button
                   className="toolbar-btn"
-                  title="New Connection"
+                  title="新建连接"
                   onClick={onNewConnection}
                 >
                   <VscAdd size={16} />
                 </button>
                 <button
                   className="toolbar-btn"
-                  title="Collapse Sidebar"
+                  title="收起侧边栏"
                   onClick={onToggle}
                 >
                   <VscChevronLeft size={16} />
@@ -113,7 +113,7 @@ export default function Sidebar({
                     fontSize: "12px",
                   }}
                 >
-                  No connections yet. Click + to add one.
+                  暂无连接。点击 + 添加。
                 </p>
               ) : (
                 grouped.map((group) => (
@@ -159,7 +159,7 @@ export default function Sidebar({
                           <div className="connection-item-actions">
                             <button
                               className="connection-action-btn"
-                              title="Edit"
+                              title="编辑"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 onEditConnection(conn);
@@ -169,7 +169,7 @@ export default function Sidebar({
                             </button>
                             <button
                               className="connection-action-btn"
-                              title="Delete"
+                              title="删除"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleDelete(conn.id, conn.name);
@@ -191,7 +191,7 @@ export default function Sidebar({
         <div className="sidebar-collapsed-strip">
           <button
             className="toolbar-btn"
-            title="Expand Sidebar"
+            title="展开侧边栏"
             onClick={onToggle}
           >
             <VscChevronRight size={16} />

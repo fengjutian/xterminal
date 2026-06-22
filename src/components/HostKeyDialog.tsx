@@ -44,7 +44,7 @@ export default function HostKeyDialog({
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>
-            {isChanged ? 'Host Key Mismatch!' : 'Unknown Host Key'}
+            {isChanged ? '主机密钥不匹配！' : '未知主机'}
           </DialogTitle>
         </DialogHeader>
 
@@ -54,11 +54,10 @@ export default function HostKeyDialog({
               <VscWarning size={20} className="shrink-0 mt-0.5" style={{ color: 'var(--danger)' }} />
               <div className="grid gap-1">
                 <span style={{ fontWeight: 600, color: 'var(--danger)' }}>
-                  WARNING: Host key has changed!
+                  WARNING: 主机密钥已变更！
                 </span>
                 <span style={{ color: 'var(--text-secondary)' }}>
-                  The server&apos;s host key does not match the stored key. This may indicate
-                  a man-in-the-middle attack.
+                  服务器的主机密钥与记录不匹配，可能存在中间人攻击。
                 </span>
               </div>
             </div>
@@ -66,11 +65,11 @@ export default function HostKeyDialog({
             <div className="flex items-start gap-3 rounded-md bg-accent/10 border border-accent/30 px-3 py-3 text-sm">
               <VscInfo size={20} className="shrink-0 mt-0.5" style={{ color: 'var(--accent)' }} />
               <span style={{ color: 'var(--text-secondary)' }}>
-                The authenticity of host{' '}
+                无法确认主机{' '}
                 <strong style={{ color: 'var(--text-primary)' }}>
                   {payload.host}:{payload.port}
                 </strong>{' '}
-                can&apos;t be established. You are seeing this for the first time.
+                的真实性，这是首次连接。
               </span>
             </div>
           )}
@@ -78,21 +77,21 @@ export default function HostKeyDialog({
           <div className="grid gap-2 rounded-md border border-border bg-[var(--bg-secondary)] p-3 text-sm">
             <div className="flex items-center gap-2">
               <VscKey size={14} />
-              <span style={{ fontWeight: 600 }}>Key fingerprint</span>
+              <span style={{ fontWeight: 600 }}>密钥指纹</span>
             </div>
             <div className="grid gap-1 pl-6 text-xs" style={{ color: 'var(--text-secondary)' }}>
               <div className="flex gap-2">
-                <span style={{ width: 80 }}>Host:</span>
+                <span style={{ width: 80 }}>主机：</span>
                 <code style={{ color: 'var(--text-primary)' }}>
                   {payload.host}:{payload.port}
                 </code>
               </div>
               <div className="flex gap-2">
-                <span style={{ width: 80 }}>Algorithm:</span>
+                <span style={{ width: 80 }}>算法：</span>
                 <code style={{ color: 'var(--text-primary)' }}>{payload.key_type}</code>
               </div>
               <div className="flex gap-2">
-                <span style={{ width: 80 }}>SHA256:</span>
+                <span style={{ width: 80 }}>SHA256：</span>
                 <code
                   style={{
                     color: isChanged ? 'var(--danger)' : 'var(--text-primary)',
@@ -105,7 +104,7 @@ export default function HostKeyDialog({
               </div>
               {isChanged && (
                 <div className="flex gap-2">
-                  <span style={{ width: 80 }}>Expected:</span>
+                  <span style={{ width: 80 }}>期望值：</span>
                   <code
                     style={{
                       color: 'var(--warning)',
@@ -130,7 +129,7 @@ export default function HostKeyDialog({
             }}
           >
             <VscWarning size={14} />
-            <span>{isChanged ? "Don't Connect" : 'Cancel'}</span>
+            <span>{isChanged ? '不连接' : '取消'}</span>
           </Button>
 
           {verifyPayload && (
@@ -141,7 +140,7 @@ export default function HostKeyDialog({
               }}
             >
               <VscCheck size={14} />
-              <span>Accept Key</span>
+              <span>接受密钥</span>
             </Button>
           )}
 
@@ -163,7 +162,7 @@ export default function HostKeyDialog({
               }}
             >
               <VscWarning size={14} />
-              <span>Accept Anyway</span>
+              <span>仍然接受</span>
             </Button>
           )}
         </DialogFooter>

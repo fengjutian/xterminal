@@ -145,7 +145,7 @@ export default function ConnectionDialog({ editConfig, onClose, onSaved }: Props
     try {
       const { open } = await import('@tauri-apps/plugin-dialog');
       const selected = await open({
-        title: 'Select Private Key File',
+        title: '选择私钥文件',
         filters: [{ name: 'Private Key', extensions: ['pem', 'key', 'ppk', ''] }],
       });
       if (selected && typeof selected === 'string') {
@@ -160,7 +160,7 @@ export default function ConnectionDialog({ editConfig, onClose, onSaved }: Props
     <Dialog open={true} onOpenChange={(open) => { if (!open) onClose(); }}>
       <DialogContent className="sm:max-w-[520px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEdit ? 'Edit Connection' : 'New Connection'}</DialogTitle>
+          <DialogTitle>{isEdit ? '编辑连接' : '新建连接'}</DialogTitle>
         </DialogHeader>
 
         {error && (
@@ -173,12 +173,12 @@ export default function ConnectionDialog({ editConfig, onClose, onSaved }: Props
         <div className="grid gap-4 py-2">
           {/* Connection Name */}
           <div className="grid gap-1.5">
-            <Label htmlFor="name">Connection Name</Label>
+            <Label htmlFor="name">连接名称</Label>
             <Input
               id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="My Server"
+              placeholder="我的服务器"
               autoFocus
             />
           </div>
@@ -186,16 +186,16 @@ export default function ConnectionDialog({ editConfig, onClose, onSaved }: Props
           {/* Host & Port row */}
           <div className="flex gap-3">
             <div className="flex-1 grid gap-1.5">
-              <Label htmlFor="host">Host</Label>
+              <Label htmlFor="host">主机</Label>
               <Input
                 id="host"
                 value={host}
                 onChange={(e) => setHost(e.target.value)}
-                placeholder="192.168.1.1 or example.com"
+                placeholder="192.168.1.1 或 example.com"
               />
             </div>
             <div className="w-[100px] grid gap-1.5">
-              <Label htmlFor="port">Port</Label>
+              <Label htmlFor="port">端口</Label>
               <Input
                 id="port"
                 type="number"
@@ -209,7 +209,7 @@ export default function ConnectionDialog({ editConfig, onClose, onSaved }: Props
 
           {/* Username */}
           <div className="grid gap-1.5">
-            <Label htmlFor="username">Username</Label>
+            <Label htmlFor="username">用户名</Label>
             <Input
               id="username"
               value={username}
@@ -220,12 +220,12 @@ export default function ConnectionDialog({ editConfig, onClose, onSaved }: Props
 
           {/* Authentication Method */}
           <div className="grid gap-1.5">
-            <Label>Authentication</Label>
+            <Label>认证方式</Label>
             <div className="flex border border-input rounded-md overflow-hidden">
               {([
-                { value: 'password' as AuthMethod, icon: VscPass, label: 'Password' },
-                { value: 'key_file' as AuthMethod, icon: VscKey, label: 'Key File' },
-                { value: 'key_file_with_passphrase' as AuthMethod, icon: VscKey, label: 'Key + Passphrase' },
+                { value: 'password' as AuthMethod, icon: VscPass, label: '密码' },
+                { value: 'key_file' as AuthMethod, icon: VscKey, label: '密钥文件' },
+                { value: 'key_file_with_passphrase' as AuthMethod, icon: VscKey, label: '密钥 + 口令' },
               ]).map((opt, i) => (
                 <label
                   key={opt.value}
@@ -256,17 +256,17 @@ export default function ConnectionDialog({ editConfig, onClose, onSaved }: Props
           {/* Password field (only for password auth) */}
           {authMethod === 'password' && (
             <div className="grid gap-1.5">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">密码</Label>
               <Input
                 id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder={isEdit ? '(unchanged if blank)' : 'Password'}
+                placeholder={isEdit ? '（留空不变）' : '密码'}
               />
               {isEdit && (
                 <p className="text-[11px] text-muted-foreground leading-tight">
-                  Leave blank to keep existing password.
+                  留空则保持现有密码不变。
                 </p>
               )}
             </div>
@@ -276,7 +276,7 @@ export default function ConnectionDialog({ editConfig, onClose, onSaved }: Props
           {(authMethod === 'key_file' || authMethod === 'key_file_with_passphrase') && (
             <>
               <div className="grid gap-1.5">
-                <Label htmlFor="privateKey">Private Key Path</Label>
+                <Label htmlFor="privateKey">私钥路径</Label>
                 <div className="flex gap-2">
                   <Input
                     id="privateKey"
@@ -287,20 +287,20 @@ export default function ConnectionDialog({ editConfig, onClose, onSaved }: Props
                   />
                   <Button variant="outline" size="sm" onClick={handleBrowseKey}>
                     <VscFolderOpened size={14} />
-                    <span>Browse</span>
+                    <span>浏览</span>
                   </Button>
                 </div>
               </div>
 
               {authMethod === 'key_file_with_passphrase' && (
                 <div className="grid gap-1.5">
-                  <Label htmlFor="passphrase">Passphrase</Label>
+                  <Label htmlFor="passphrase">口令</Label>
                   <Input
                     id="passphrase"
                     type="password"
                     value={passphrase}
                     onChange={(e) => setPassphrase(e.target.value)}
-                    placeholder={isEdit ? '(unchanged if blank)' : 'Key passphrase'}
+                    placeholder={isEdit ? '（留空不变）' : '密钥口令'}
                   />
                 </div>
               )}
@@ -309,7 +309,7 @@ export default function ConnectionDialog({ editConfig, onClose, onSaved }: Props
 
           {/* Group */}
           <div className="grid gap-1.5">
-            <Label htmlFor="group">Group (optional)</Label>
+            <Label htmlFor="group">分组（可选）</Label>
             <div className="flex gap-2">
               <select
                 id="group"
@@ -320,17 +320,17 @@ export default function ConnectionDialog({ editConfig, onClose, onSaved }: Props
                   if (e.target.value !== '__new__') setNewGroupName('');
                 }}
               >
-                <option value="">No group</option>
+                <option value="">无分组</option>
                 {groups.map((g) => (
                   <option key={g} value={g}>
                     {g}
                   </option>
                 ))}
-                <option value="__new__">+ New group...</option>
+                <option value="__new__">+ 新建分组...</option>
               </select>
               {groupId === '__new__' && (
                 <Input
-                  placeholder="Group name"
+                  placeholder="分组名称"
                   value={newGroupName}
                   onChange={(e) => setNewGroupName(e.target.value)}
                   autoFocus
@@ -348,7 +348,7 @@ export default function ConnectionDialog({ editConfig, onClose, onSaved }: Props
               onClick={() => setShowAdvanced(!showAdvanced)}
             >
               <VscSettingsGear size={14} />
-              <span>Advanced Settings</span>
+              <span>高级设置</span>
               <span className={`text-[10px] transition-transform ${showAdvanced ? 'rotate-90' : ''}`}>
                 ▶
               </span>
@@ -357,7 +357,7 @@ export default function ConnectionDialog({ editConfig, onClose, onSaved }: Props
             {showAdvanced && (
               <div className="mt-3 grid gap-4 pl-4 border-l-2 border-border">
                 <div className="grid gap-1.5">
-                  <Label htmlFor="encoding">Encoding</Label>
+                  <Label htmlFor="encoding">编码</Label>
                   <select
                     id="encoding"
                     className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 cursor-pointer"
@@ -375,7 +375,7 @@ export default function ConnectionDialog({ editConfig, onClose, onSaved }: Props
 
                 <div className="flex gap-3">
                   <div className="flex-1 grid gap-1.5">
-                    <Label htmlFor="timeout">Connection Timeout (seconds)</Label>
+                    <Label htmlFor="timeout">连接超时（秒）</Label>
                     <Input
                       id="timeout"
                       type="number"
@@ -388,7 +388,7 @@ export default function ConnectionDialog({ editConfig, onClose, onSaved }: Props
                     />
                   </div>
                   <div className="flex-1 grid gap-1.5">
-                    <Label htmlFor="keepalive">Keep-Alive Interval (seconds)</Label>
+                    <Label htmlFor="keepalive">心跳间隔（秒）</Label>
                     <Input
                       id="keepalive"
                       type="number"
@@ -399,7 +399,7 @@ export default function ConnectionDialog({ editConfig, onClose, onSaved }: Props
                         setKeepAliveInterval(parseInt(e.target.value, 10) || 0)
                       }
                     />
-                    <p className="text-[11px] text-muted-foreground leading-tight">0 = disabled</p>
+                    <p className="text-[11px] text-muted-foreground leading-tight">0 = 禁用</p>
                   </div>
                 </div>
               </div>
@@ -409,11 +409,11 @@ export default function ConnectionDialog({ editConfig, onClose, onSaved }: Props
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
-            Cancel
+            取消
           </Button>
           <Button onClick={handleSave} disabled={saving}>
             <VscServer size={14} />
-            {saving ? 'Saving...' : isEdit ? 'Update' : 'Save'}
+            {saving ? '保存中...' : isEdit ? '更新' : '保存'}
           </Button>
         </DialogFooter>
       </DialogContent>
