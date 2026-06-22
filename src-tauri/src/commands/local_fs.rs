@@ -26,7 +26,7 @@ pub fn list_local_files(path: String) -> Result<Vec<LocalFileEntry>, String> {
     }
 
     let mut entries = Vec::new();
-    let mut read_dir = std::fs::read_dir(dir).map_err(|e| format!("Cannot read directory: {}", e))?;
+    let read_dir = std::fs::read_dir(dir).map_err(|e| format!("Cannot read directory: {}", e))?;
 
     for entry in read_dir {
         let entry = entry.map_err(|e| format!("Error reading entry: {}", e))?;
