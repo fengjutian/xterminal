@@ -316,30 +316,32 @@ export default function App() {
           )}
           {connected ? (
             <>
-              <div className="workspace-toolbar">
-                <TabBar />
-                <div className="toolbar-actions">
-                  <button
-                    className="toolbar-btn"
-                    onClick={handleGoHome}
-                    title="回到首页"
-                  >
-                    <VscHome size={16} />
-                  </button>
-                  <div className="toolbar-divider" />
-                  <button
-                    className="toolbar-btn"
-                    onClick={handleLocalTerminal}
-                    title="新建终端（Ctrl+Shift+T）"
-                  >
-                    <VscAdd size={16} />
-                  </button>
+              {activeView === "terminal" && (
+                <div className="workspace-toolbar">
+                  <TabBar />
+                  <div className="toolbar-actions">
+                    <button
+                      className="toolbar-btn"
+                      onClick={handleGoHome}
+                      title="回到首页"
+                    >
+                      <VscHome size={16} />
+                    </button>
+                    <div className="toolbar-divider" />
+                    <button
+                      className="toolbar-btn"
+                      onClick={handleLocalTerminal}
+                      title="新建终端（Ctrl+Shift+T）"
+                    >
+                      <VscAdd size={16} />
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
               <div className="workspace-content">
                 {activeView === "terminal" ? <TerminalPanel /> : <FileExplorer />}
               </div>
-              <TransferPanel />
+              {activeView === "terminal" && <TransferPanel />}
             </>
           ) : (
             <WelcomeScreen
