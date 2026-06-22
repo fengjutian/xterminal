@@ -6,11 +6,12 @@ import TerminalPanel from "./components/TerminalPanel";
 import FileExplorer from "./components/FileExplorer";
 import TransferPanel from "./components/TransferPanel";
 import ConnectionDialog from "./components/ConnectionDialog";
+import HostKeyDialog from "./components/HostKeyDialog";
 import WelcomeScreen from "./components/WelcomeScreen";
 import { useTerminalStore } from "./stores/terminalStore";
 import { useConnectionStore } from "./stores/connectionStore";
 import { useAppStore } from "./stores/appStore";
-import type { AppSettings, ConnectionConfig } from "./types";
+import type { AppSettings, ConnectionConfig, HostKeyVerificationPayload, HostKeyChangedPayload } from "./types";
 
 export default function App() {
   const [activeView, setActiveView] = useState<"terminal" | "files">("terminal");
@@ -18,6 +19,8 @@ export default function App() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingConnection, setEditingConnection] = useState<ConnectionConfig | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [hostKeyVerifyPayload, setHostKeyVerifyPayload] = useState<HostKeyVerificationPayload | null>(null);
+  const [hostKeyChangedPayload, setHostKeyChangedPayload] = useState<HostKeyChangedPayload | null>(null);
   const createTab = useTerminalStore((s) => s.createTab);
   const closeTab = useTerminalStore((s) => s.closeTab);
   const tabs = useTerminalStore((s) => s.tabs);
@@ -192,6 +195,89 @@ export default function App() {
     setActiveView("terminal");
   }, [tabs, closeTab]);
 
+  // ── Host key verification event listeners ──
+  useEffect(() => {
+    let cancelled = false;
+    const cleanups: (() => void)[] = [];
+
+    const setup = async () => {
+      const { listen } = await import("@tauri-apps/api/event");
+      if (cancelled) return;
+
+      const unlistenConfirm = await listen<HostKeyVerificationPayload>(
+        "host-key-confirm",
+        (event) => {
+          if (!cancelled) {
+            setHostKeyVerifyPayload(event.payload);
+          }
+        }
+      );
+      cleanups.push(unlistenConfirm);
+
+      const unlistenChanged = await listen<HostKeyChangedPayload>(
+        "host-key-changed",
+        (event) => {
+          if (!cancelled) {
+            setHostKeyChangedPayload(event.payload);
+          }
+        }
+      );
+      cleanups.push(unlistenChanged);
+    };
+
+    setup();
+
+    return () => {
+      cancelled = true;
+      cleanups.forEach((fn) => fn());
+    };
+  }, []);
+
+  const handleHostKeyAccept = useCallback(async (payload: HostKeyVerificationPayload) => {
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      await invoke("ssh_confirm_host_key", {
+        sessionId: payload.session_id,
+        accept: true,
+        host: payload.host,
+        port: payload.port,
+        keyType: payload.key_type,
+        fingerprint: payload.fingerprint,
+      });
+    } catch (e) {
+      console.error("Failed to confirm host key:", e);
+    }
+    setHostKeyVerifyPayload(null);
+    setHostKeyChangedPayload(null);
+  }, []);
+
+  const handleHostKeyReject = useCallback(async (sessionId: string) => {
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      await invoke("ssh_confirm_host_key", {
+        sessionId,
+        accept: false,
+        host: "",
+        port: 0,
+        keyType: "",
+        fingerprint: "",
+      });
+    } catch (e) {
+      console.error("Failed to reject host key:", e);
+    }
+    setHostKeyVerifyPayload(null);
+    setHostKeyChangedPayload(null);
+  }, []);
+
+  const handleHostKeyClose = useCallback(() => {
+    // If user dismisses via X, reject any pending verification
+    if (hostKeyVerifyPayload) {
+      handleHostKeyReject(hostKeyVerifyPayload.session_id);
+    }
+    setHostKeyVerifyPayload(null);
+    setHostKeyChangedPayload(null);
+  }, [hostKeyVerifyPayload, handleHostKeyReject]);
+
   return (
     <div className="app-container">
       <div className="app-main">
@@ -272,6 +358,13 @@ export default function App() {
           onSaved={handleDialogSaved}
         />
       )}
+      <HostKeyDialog
+        verifyPayload={hostKeyVerifyPayload}
+        changedPayload={hostKeyChangedPayload}
+        onAccept={handleHostKeyAccept}
+        onReject={handleHostKeyReject}
+        onClose={handleHostKeyClose}
+      />
     </div>
   );
 }

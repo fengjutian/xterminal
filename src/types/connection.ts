@@ -63,3 +63,20 @@ export interface SshSession {
   state: ConnectionState;
   connected_at: string | null;
 }
+
+export interface HostKeyVerificationPayload {
+  session_id: string;
+  host: string;
+  port: number;
+  key_type: string;
+  fingerprint: string;
+}
+
+export interface HostKeyChangedPayload {
+  session_id: string;
+  host: string;
+  port: number;
+  key_type: string;
+  expected_fingerprint: string;
+  received_fingerprint: string;
+}

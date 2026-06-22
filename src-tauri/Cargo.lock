@@ -6421,6 +6421,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "base64 0.22.1",
  "chrono",
  "encoding_rs",
  "env_logger",
@@ -6433,6 +6434,7 @@ dependencies = [
  "russh-sftp",
  "serde",
  "serde_json",
+ "sha2",
  "suppaftp",
  "tauri",
  "tauri-build",

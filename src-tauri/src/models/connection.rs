@@ -123,10 +123,32 @@ pub struct SshSession {
 /// Host key info for verification
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HostKeyInfo {
+    pub id: String,
     pub host: String,
     pub port: u16,
     pub key_type: String,
     pub fingerprint: String,
     pub verified: bool,
     pub created_at: String,
+}
+
+/// Payload sent to the frontend for host key verification dialog
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HostKeyVerificationPayload {
+    pub session_id: String,
+    pub host: String,
+    pub port: u16,
+    pub key_type: String,
+    pub fingerprint: String,
+}
+
+/// Payload sent to the frontend when host key has changed (possible MITM)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HostKeyChangedPayload {
+    pub session_id: String,
+    pub host: String,
+    pub port: u16,
+    pub key_type: String,
+    pub expected_fingerprint: String,
+    pub received_fingerprint: String,
 }

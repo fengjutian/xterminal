@@ -342,6 +342,70 @@ pub mod connections {
     }
 }
 
+/// Module for host key storage (known_hosts)
+pub mod host_keys {
+    use rusqlite::{params, Connection};
+
+    pub fn get_host_key(conn: &Connection, host: &str, port: u16) -> Result<Option<crate::models::connection::HostKeyInfo>, String> {
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, host, port, key_type, fingerprint, verified, created_at
+                 FROM host_keys WHERE host = ?1 AND port = ?2",
+            )
+            .map_err(|e| e.to_string())?;
+
+        let result = stmt.query_row(params![host, port], |row| {
+            Ok(crate::models::connection::HostKeyInfo {
+                id: row.get(0)?,
+                host: row.get(1)?,
+                port: row.get(2)?,
+                key_type: row.get(3)?,
+                fingerprint: row.get(4)?,
+                verified: row.get::<_, i32>(5)? != 0,
+                created_at: row.get(6)?,
+            })
+        });
+
+        match result {
+            Ok(info) => Ok(Some(info)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(e.to_string()),
+        }
+    }
+
+    pub fn save_host_key(
+        conn: &mut Connection,
+        host: &str,
+        port: u16,
+        key_type: &str,
+        fingerprint: &str,
+    ) -> Result<crate::models::connection::HostKeyInfo, String> {
+        let now = chrono::Utc::now().to_rfc3339();
+
+        // Upsert: insert or update on UNIQUE(host, port) conflict
+        conn.execute(
+            "INSERT INTO host_keys (id, host, port, key_type, fingerprint, verified, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, 1, ?6)
+             ON CONFLICT(host, port) DO UPDATE SET
+                key_type = excluded.key_type,
+                fingerprint = excluded.fingerprint,
+                verified = 1,
+                created_at = excluded.created_at",
+            params![uuid::Uuid::new_v4().to_string(), host, port, key_type, fingerprint, now],
+        )
+        .map_err(|e| e.to_string())?;
+
+        // Fetch back the saved row
+        get_host_key(conn, host, port)?.ok_or_else(|| "Failed to retrieve saved host key".to_string())
+    }
+
+    pub fn delete_host_key(conn: &mut Connection, host: &str, port: u16) -> Result<(), String> {
+        conn.execute("DELETE FROM host_keys WHERE host = ?1 AND port = ?2", params![host, port])
+            .map_err(|e| e.to_string())?;
+        Ok(())
+    }
+}
+
 /// Module for application settings CRUD
 pub mod settings {
     use rusqlite::{params, Connection};

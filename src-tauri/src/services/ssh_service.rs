@@ -2,9 +2,15 @@
 ///
 /// Provides connect, disconnect, write, and resize operations.
 /// Terminal output is forwarded to the frontend via Tauri events ("ssh-terminal-output").
+///
+/// Host key verification:
+/// - Known keys (fingerprint matches) → accepted automatically
+/// - Unknown keys → "host-key-confirm" event sent to frontend, user decides
+/// - Key mismatch → "host-key-changed" event sent to frontend, connection rejected
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use tokio::sync::oneshot;
 use tauri::Emitter;
 
 use russh::client::{self, Handler, Msg};
@@ -13,6 +19,8 @@ use russh::ChannelId;
 use russh_keys::load_secret_key;
 use async_trait::async_trait;
 use encoding_rs::{UTF_8, GBK, BIG5, SHIFT_JIS, EUC_KR};
+
+use crate::models::connection::HostKeyVerificationPayload;
 
 /// Convert an encoding string (e.g. "UTF-8", "GBK") to the corresponding encoding_rs encoding.
 fn encoding_from_str(name: &str) -> &'static encoding_rs::Encoding {
@@ -25,6 +33,11 @@ fn encoding_from_str(name: &str) -> &'static encoding_rs::Encoding {
         _ => UTF_8, // default to UTF-8
     }
 }
+
+// ---------------------------------------------------------------------------
+// Shared pending key confirmations — resolved by ssh_confirm_host_key command
+// ---------------------------------------------------------------------------
+pub type PendingKeyMap = Arc<Mutex<HashMap<String, oneshot::Sender<bool>>>>;
 
 // ---------------------------------------------------------------------------
 // Session handle stored in the service map
@@ -43,23 +56,115 @@ struct SshSession {
 struct SshClientHandler {
     app_handle: tauri::AppHandle,
     session_id: String,
+    host: String,
+    port: u16,
     encoding: &'static encoding_rs::Encoding,
+    known_fingerprint: Option<String>,
+    pending_keys: PendingKeyMap,
 }
 
 #[async_trait]
 impl Handler for SshClientHandler {
     type Error = anyhow::Error;
 
-    /// Server key verification — accept all keys for now (TODO: known_hosts)
+    /// Server key verification with known_hosts support.
+    ///
+    /// 1. Compute SHA-256 fingerprint of the server's public key
+    /// 2. If a known fingerprint exists:
+    ///    - Match → accept (return true)
+    ///    - Mismatch → emit "host-key-changed" event, reject (return false)
+    /// 3. If no known fingerprint (first connection):
+    ///    - Emit "host-key-confirm" event to frontend
+    ///    - Wait for user decision via oneshot channel
     async fn check_server_key(
         &mut self,
-        _server_public_key: &russh_keys::key::PublicKey,
+        server_public_key: &russh_keys::key::PublicKey,
     ) -> Result<bool, Self::Error> {
+        // Get the key algorithm name (e.g., "ssh-rsa", "ecdsa-sha2-nistp256")
+        let algorithm = format!("{:?}", server_public_key);
+
+        // Compute SHA-256 fingerprint using russh's built-in hash function
+        // fingerprint() returns standard "SHA256:base64..." format
+        let fingerprint = server_public_key.fingerprint();
+
         log::info!(
-            "[ssh {}] Accepting server key (verification skipped)",
-            self.session_id
+            "[ssh {}] Server key: {} fingerprint={}",
+            self.session_id, algorithm, fingerprint
         );
-        Ok(true)
+
+        // Check against known fingerprint
+        if let Some(ref known) = self.known_fingerprint {
+            if *known == fingerprint {
+                log::info!(
+                    "[ssh {}] Host key matches known fingerprint — accepted",
+                    self.session_id
+                );
+                Ok(true)
+            } else {
+                log::warn!(
+                    "[ssh {}] HOST KEY MISMATCH! known={} received={}",
+                    self.session_id, known, fingerprint
+                );
+                // Emit mismatch event — frontend can show a warning
+                let _ = self.app_handle.emit(
+                    "host-key-changed",
+                    serde_json::json!({
+                        "session_id": self.session_id,
+                        "host": self.host,
+                        "port": self.port,
+                        "key_type": algorithm,
+                        "expected_fingerprint": known,
+                        "received_fingerprint": fingerprint,
+                    }),
+                );
+                // Reject the connection — safety first
+                Ok(false)
+            }
+        } else {
+            // Unknown host key — ask user to confirm
+            let (tx, rx) = oneshot::channel();
+
+            // Store the sender in the shared map keyed by session_id
+            {
+                let mut map = self.pending_keys.lock().await;
+                map.insert(self.session_id.clone(), tx);
+            }
+
+            // Emit event to frontend
+            let payload = HostKeyVerificationPayload {
+                session_id: self.session_id.clone(),
+                host: self.host.clone(),
+                port: self.port,
+                key_type: algorithm,
+                fingerprint,
+            };
+
+            let _ = self.app_handle.emit("host-key-confirm", &payload);
+
+            log::info!(
+                "[ssh {}] Waiting for user to confirm unknown host key...",
+                self.session_id
+            );
+
+            // Wait for the user's decision (blocking the connection handshake)
+            match rx.await {
+                Ok(true) => {
+                    log::info!("[ssh {}] User accepted host key — connecting", self.session_id);
+                    Ok(true)
+                }
+                Ok(false) => {
+                    log::info!("[ssh {}] User rejected host key — aborting", self.session_id);
+                    Ok(false)
+                }
+                Err(_) => {
+                    log::warn!(
+                        "[ssh {}] Host key confirmation channel closed — rejecting",
+                        self.session_id
+                    );
+                    Ok(false)
+                }
+            }
+        }
     }
 
     /// Called when the server sends data on a channel
@@ -113,6 +218,12 @@ impl SshService {
     /// A PTY is allocated and a shell is started.
     /// Terminal output is emitted as "ssh-terminal-output" events.
     /// The `encoding` parameter specifies the remote server's text encoding (e.g. "UTF-8", "GBK").
+    ///
+    /// `known_fingerprint` should be `Some(fp)` when a stored host key exists,
+    /// or `None` for unknown hosts (triggers user confirmation dialog).
+    ///
+    /// `pending_keys` is the shared map used to resolve host key confirmations
+    /// via the `ssh_confirm_host_key` Tauri command.
     pub async fn connect(
         &self,
         host: &str,
@@ -124,6 +235,8 @@ impl SshService {
         _timeout_secs: u32,
         _keep_alive_secs: u32,
         encoding: &str,
+        known_fingerprint: Option<String>,
+        pending_keys: PendingKeyMap,
         app_handle: tauri::AppHandle,
     ) -> Result<String, String> {
         let session_id = uuid::Uuid::new_v4().to_string();
@@ -135,16 +248,20 @@ impl SshService {
         let config = client::Config::default();
         let config = Arc::new(config);
 
-        // Create handler
+        // Create handler with host key verification support
         let handler = SshClientHandler {
             app_handle: app_handle.clone(),
             session_id: session_id.clone(),
+            host: host.to_string(),
+            port,
             encoding: enc,
+            known_fingerprint,
+            pending_keys,
         };
 
         log::info!("[ssh {}] Connecting to {}...", session_id, addr);
 
-        // Connect
+        // Connect — this triggers check_server_key during key exchange
         let mut handle = russh::client::connect(config, &addr, handler)
             .await
             .map_err(|e| format!("SSH connection failed: {:#}", e))?;

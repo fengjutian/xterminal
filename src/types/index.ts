@@ -8,6 +8,8 @@ export type {
   CreateConnectionPayload,
   UpdateConnectionPayload,
   SshSession,
+  HostKeyVerificationPayload,
+  HostKeyChangedPayload,
 } from './connection';
 
 export type {

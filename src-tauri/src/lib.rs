@@ -34,6 +34,7 @@ pub fn run() {
         .manage(commands::connection::DatabaseState::default())
         .manage(commands::local_shell::LocalShellState::new())
         .manage(commands::ssh::SshState::new())
+        .manage(commands::ssh::PendingKeyState::new())
         .manage(commands::port_forward::PortForwardState::new())
         .invoke_handler(tauri::generate_handler![
             commands::connection::list_connections,
@@ -45,6 +46,7 @@ pub fn run() {
             commands::ssh::ssh_disconnect,
             commands::ssh::ssh_write,
             commands::ssh::ssh_resize,
+            commands::ssh::ssh_confirm_host_key,
             commands::sftp::sftp_list_files,
             commands::sftp::sftp_upload_file,
             commands::sftp::sftp_download_file,
