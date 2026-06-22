@@ -17,6 +17,7 @@ export default function App() {
   const [connected, setConnected] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingConnection, setEditingConnection] = useState<ConnectionConfig | null>(null);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
   const createTab = useTerminalStore((s) => s.createTab);
   const closeTab = useTerminalStore((s) => s.closeTab);
   const tabs = useTerminalStore((s) => s.tabs);
@@ -91,6 +92,7 @@ export default function App() {
     username: string;
     password: string;
   }) => {
+    setConnectionError(null);
     try {
       const { invoke } = await import("@tauri-apps/api/core");
       const sessionId: string = await invoke("ssh_connect", {
@@ -113,7 +115,9 @@ export default function App() {
       });
       setConnected(true);
     } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
       console.error("Failed to connect:", e);
+      setConnectionError(msg);
     }
   };
 
@@ -139,6 +143,7 @@ export default function App() {
   }, [createTab]);
 
   const handleSavedConnection = async (config: ConnectionConfig) => {
+    setConnectionError(null);
     try {
       const { invoke } = await import("@tauri-apps/api/core");
       const sessionId: string = await invoke("ssh_connect_from_config", {
@@ -154,7 +159,9 @@ export default function App() {
       });
       setConnected(true);
     } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
       console.error("Failed to connect via saved config:", e);
+      setConnectionError(msg);
     }
   };
 
@@ -193,8 +200,20 @@ export default function App() {
           onToggle={toggleSidebar}
           onNewConnection={handleNewConnection}
           onEditConnection={handleEditConnection}
+          onConnect={handleSavedConnection}
         />
         <div className="app-workspace">
+          {connectionError && (
+            <div className="connection-error-banner">
+              <span className="connection-error-text">{connectionError}</span>
+              <button
+                className="connection-error-close"
+                onClick={() => setConnectionError(null)}
+              >
+                ×
+              </button>
+            </div>
+          )}
           {connected ? (
             <>
               <div className="workspace-toolbar">

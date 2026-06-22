@@ -237,6 +237,42 @@ pub mod connections {
         let keep_alive = payload.keep_alive_interval.unwrap_or(existing.keep_alive_interval);
         let timeout = payload.connection_timeout.unwrap_or(existing.connection_timeout);
 
+        // Handle keyring credential updates
+        let mut keyring_id = existing.keyring_id.clone();
+        let has_new_password = payload.password.as_ref().map(|p| !p.is_empty()).unwrap_or(false);
+        let has_new_passphrase = payload.passphrase.as_ref().map(|p| !p.is_empty()).unwrap_or(false);
+        let password_provided = payload.password.is_some();
+        let passphrase_provided = payload.passphrase.is_some();
+
+        // Determine which secret to store based on auth method
+        let secret_to_store: Option<&str> = match &auth_method {
+            AuthMethod::Password if has_new_password => payload.password.as_deref(),
+            AuthMethod::KeyFileWithPassphrase if has_new_passphrase => payload.passphrase.as_deref(),
+            AuthMethod::KeyFileWithPassphrase if has_new_password => {
+                // Fallback: if passphrase not provided but password is, treat as passphrase
+                payload.password.as_deref()
+            }
+            _ => None,
+        };
+
+        if password_provided || passphrase_provided {
+            // Delete old keyring entry if exists
+            if let Some(ref old_kid) = keyring_id {
+                let _ = crate::security::keyring::delete_credential(old_kid);
+            }
+
+            // Store new secret if provided and non-empty
+            if let Some(secret) = secret_to_store {
+                keyring_id = Some(crate::security::keyring::store_credential(
+                    &format!("x-terminal-{}", payload.id),
+                    secret,
+                )?);
+            } else {
+                // Password/passphrase cleared
+                keyring_id = None;
+            }
+        }
+
         let auth_method_str = match auth_method {
             AuthMethod::Password => "password",
             AuthMethod::KeyFile => "key",
@@ -247,9 +283,9 @@ pub mod connections {
 
         conn.execute(
             "UPDATE connections SET name=?1, group_id=?2, host=?3, port=?4, username=?5,
-             auth_method=?6, private_key_path=?7, encoding=?8, keep_alive_interval=?9,
-             connection_timeout=?10, updated_at=?11
-             WHERE id=?12",
+             auth_method=?6, private_key_path=?7, keyring_id=?8, encoding=?9, keep_alive_interval=?10,
+             connection_timeout=?11, updated_at=?12
+             WHERE id=?13",
             params![
                 name,
                 group_id,
@@ -258,6 +294,7 @@ pub mod connections {
                 username,
                 auth_method_str,
                 private_key_path,
+                keyring_id,
                 encoding,
                 keep_alive,
                 timeout,
@@ -276,7 +313,7 @@ pub mod connections {
             username,
             auth_method,
             private_key_path,
-            keyring_id: existing.keyring_id,
+            keyring_id,
             encoding,
             keep_alive_interval: keep_alive,
             connection_timeout: timeout,

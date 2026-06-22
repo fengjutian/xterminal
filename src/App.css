@@ -264,6 +264,41 @@ html, body, #root {
   padding: 0 8px;
 }
 
+/* Connection error banner */
+.connection-error-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--danger);
+  color: #fff;
+  padding: 8px 14px;
+  font-size: 13px;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.connection-error-text {
+  flex: 1;
+  min-width: 0;
+  word-break: break-word;
+}
+
+.connection-error-close {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+  opacity: 0.8;
+  flex-shrink: 0;
+}
+
+.connection-error-close:hover {
+  opacity: 1;
+}
+
 .workspace-content {
   flex: 1;
   overflow: hidden;

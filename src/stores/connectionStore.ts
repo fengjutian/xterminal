@@ -9,7 +9,7 @@ interface ConnectionState {
 
   fetchConnections: () => Promise<void>;
   createConnection: (payload: CreateConnectionPayload) => Promise<ConnectionConfig>;
-  updateConnection: (id: string, updates: Partial<ConnectionConfig>) => Promise<void>;
+  updateConnection: (id: string, updates: Partial<ConnectionConfig> & { password?: string | null; passphrase?: string | null }) => Promise<void>;
   deleteConnection: (id: string) => Promise<void>;
 }
 

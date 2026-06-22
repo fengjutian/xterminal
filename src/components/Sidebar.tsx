@@ -16,6 +16,7 @@ interface SidebarProps {
   onToggle: () => void;
   onNewConnection: () => void;
   onEditConnection: (config: ConnectionConfig) => void;
+  onConnect: (config: ConnectionConfig) => void;
 }
 
 interface GroupedConnections {
@@ -29,6 +30,7 @@ export default function Sidebar({
   onToggle,
   onNewConnection,
   onEditConnection,
+  onConnect,
 }: SidebarProps) {
   const connections = useConnectionStore((s) => s.connections);
   const deleteConnection = useConnectionStore((s) => s.deleteConnection);
@@ -142,9 +144,7 @@ export default function Sidebar({
                           <VscServer size={14} className="connection-item-icon" />
                           <div
                             style={{ flex: 1, minWidth: 0 }}
-                            onClick={() => {
-                              // Connect via saved connection is handled in WelcomeScreen
-                            }}
+                            onClick={() => onConnect(conn)}
                           >
                             <div style={{ fontSize: "13px" }}>{conn.name}</div>
                             <div

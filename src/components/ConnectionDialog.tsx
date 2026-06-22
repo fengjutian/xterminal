@@ -92,7 +92,7 @@ export default function ConnectionDialog({ editConfig, onClose, onSaved }: Props
       const finalGroupId = newGroupName.trim() || groupId || null;
 
       if (isEdit) {
-        const updates: Partial<ConnectionConfig> = {
+        const updates: Partial<ConnectionConfig> & { password?: string | null; passphrase?: string | null } = {
           name: name.trim(),
           host: host.trim(),
           port,
@@ -104,6 +104,12 @@ export default function ConnectionDialog({ editConfig, onClose, onSaved }: Props
           keep_alive_interval: keepAliveInterval,
           connection_timeout: connectionTimeout,
         };
+        if (password) {
+          updates.password = password;
+        }
+        if (passphrase) {
+          updates.passphrase = passphrase;
+        }
         await updateConnection(editConfig!.id, updates);
       } else {
         const payload: CreateConnectionPayload = {

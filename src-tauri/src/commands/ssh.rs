@@ -108,7 +108,10 @@ pub async fn ssh_connect_from_config(
                     _ => (None, Some(secret)), // passphrase for key
                 }
             }
-            Err(_) => (None, None),
+            Err(e) => {
+                log::warn!("Failed to retrieve keyring credential for '{}': {}", kid, e);
+                return Err(format!("Failed to retrieve saved credential: {}. Please edit the connection and re-enter your password/passphrase.", e));
+            }
         }
     } else {
         (None, None)
