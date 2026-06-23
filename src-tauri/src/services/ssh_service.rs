@@ -448,6 +448,32 @@ impl SshService {
         Ok(())
     }
 
+    /// Open a new channel over the existing SSH connection and request the SFTP subsystem.
+    /// Returns the channel converted to a stream, ready for `SftpSession::new()`.
+    pub async fn open_sftp_channel(
+        &self,
+        session_id: &str,
+    ) -> Result<impl tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static, String>
+    {
+        let mut sessions = self.sessions.lock().await;
+        let session = sessions
+            .get_mut(session_id)
+            .ok_or_else(|| format!("SSH session {} not found", session_id))?;
+
+        let channel = session
+            .handle
+            .channel_open_session()
+            .await
+            .map_err(|e| format!("Failed to open SFTP channel: {:#}", e))?;
+
+        channel
+            .request_subsystem(true, "sftp")
+            .await
+            .map_err(|e| format!("Failed to request SFTP subsystem: {:#}", e))?;
+
+        Ok(channel.into_stream())
+    }
+
     /// Disconnect and clean up an SSH session.
     pub async fn disconnect(&self, session_id: &str) -> Result<(), String> {
         let mut sessions = self.sessions.lock().await;
