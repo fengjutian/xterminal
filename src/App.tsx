@@ -1,5 +1,5 @@
 ﻿import { useState, useEffect, useCallback } from "react";
-import { VscAdd, VscHome } from "react-icons/vsc";
+import { VscAdd, VscColorMode, VscHome } from "react-icons/vsc";
 import Sidebar from "./components/Sidebar";
 import TabBar from "./components/TabBar";
 import TerminalPanel from "./components/TerminalPanel";
@@ -30,6 +30,8 @@ export default function App() {
   // Sidebar state from appStore (single source of truth)
   const sidebarVisible = useAppStore((s) => s.sidebarVisible);
   const toggleSidebar = useAppStore((s) => s.toggleSidebar);
+  const theme = useAppStore((s) => s.settings.theme);
+  const updateSettings = useAppStore((s) => s.updateSettings);
 
   // Fetch saved connections on mount
   const fetchConnections = useConnectionStore((s) => s.fetchConnections);
@@ -38,7 +40,6 @@ export default function App() {
   }, [fetchConnections]);
 
   // Load persisted settings from backend on mount
-  const updateSettings = useAppStore((s) => s.updateSettings);
   useEffect(() => {
     (async () => {
       try {
@@ -50,6 +51,23 @@ export default function App() {
       }
     })();
   }, [updateSettings]);
+
+  // Apply theme class to <html>
+  useEffect(() => {
+    document.documentElement.className = theme;
+  }, [theme]);
+
+  const toggleTheme = useCallback(async () => {
+    const next = theme === "dark" ? "light" : "dark";
+    updateSettings({ theme: next });
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      const updated: AppSettings = await invoke("get_app_settings");
+      await invoke("update_app_settings", { settings: { ...updated, theme: next } });
+    } catch (e) {
+      console.warn("Failed to persist theme:", e);
+    }
+  }, [theme, updateSettings]);
 
   // Ctrl+Tab / Ctrl+Shift+Tab keyboard shortcut for tab switching
   // Ctrl+Shift+T keyboard shortcut for new local terminal
@@ -320,6 +338,14 @@ export default function App() {
                 <div className="workspace-toolbar">
                   <TabBar />
                   <div className="toolbar-actions">
+                    <button
+                      className="toolbar-btn"
+                      onClick={toggleTheme}
+                      title={theme === "dark" ? "切换到浅色主题" : "切换到深色主题"}
+                    >
+                      <VscColorMode size={16} />
+                    </button>
+                    <div className="toolbar-divider" />
                     <button
                       className="toolbar-btn"
                       onClick={handleGoHome}

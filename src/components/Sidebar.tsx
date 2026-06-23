@@ -8,10 +8,12 @@ import {
   VscChevronDown,
   VscTerminalBash,
   VscFiles,
+  VscColorMode,
 } from "react-icons/vsc";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useConnectionStore } from "../stores/connectionStore";
-import type { ConnectionConfig } from "../types";
+import { useAppStore } from "../stores/appStore";
+import type { ConnectionConfig, AppSettings } from "../types";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -40,9 +42,23 @@ export default function Sidebar({
 }: SidebarProps) {
   const connections = useConnectionStore((s) => s.connections);
   const deleteConnection = useConnectionStore((s) => s.deleteConnection);
+  const theme = useAppStore((s) => s.settings.theme);
+  const updateSettings = useAppStore((s) => s.updateSettings);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string | null>>(
     new Set()
   );
+
+  const toggleTheme = useCallback(async () => {
+    const next = theme === "dark" ? "light" : "dark";
+    updateSettings({ theme: next });
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      const updated: AppSettings = await invoke("get_app_settings");
+      await invoke("update_app_settings", { settings: { ...updated, theme: next } });
+    } catch (e) {
+      console.warn("Failed to persist theme:", e);
+    }
+  }, [theme, updateSettings]);
 
   // Group connections by group_id
   const grouped = useMemo(() => {
@@ -216,6 +232,13 @@ export default function Sidebar({
       </div>
       {collapsed && (
         <div className="sidebar-collapsed-strip">
+          <button
+            className="toolbar-btn"
+            onClick={toggleTheme}
+            title={theme === "dark" ? "切换到浅色主题" : "切换到深色主题"}
+          >
+            <VscColorMode size={16} />
+          </button>
           <button
             className="toolbar-btn"
             title="展开侧边栏"
